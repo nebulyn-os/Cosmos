@@ -447,11 +447,81 @@ namespace Cosmos.Core {
             }
         }
 
+        public static void HandleInterrupt_31(ref IRQContext aContext)
+        {
+            IRQ(0x31, ref aContext);
+        }
+
+        public static void HandleInterrupt_32(ref IRQContext aContext)
+        {
+            IRQ(0x32, ref aContext);
+        }
+
+        public static void HandleInterrupt_33(ref IRQContext aContext)
+        {
+            IRQ(0x33, ref aContext);
+        }
+
+        public static void HandleInterrupt_34(ref IRQContext aContext)
+        {
+            IRQ(0x34, ref aContext);
+        }
+
         public static void HandleInterrupt_35(ref IRQContext aContext) {
             aContext.EAX *= 2;
             aContext.EBX *= 2;
             aContext.ECX *= 2;
             aContext.EDX *= 2;
+        }
+
+        public static void HandleInterrupt_36(ref IRQContext aContext)
+        {
+            IRQ(0x36, ref aContext);
+        }
+
+        public static void HandleInterrupt_37(ref IRQContext aContext)
+        {
+            IRQ(0x37, ref aContext);
+        }
+
+        public static void HandleInterrupt_38(ref IRQContext aContext)
+        {
+            IRQ(0x38, ref aContext);
+        }
+
+        public static void HandleInterrupt_39(ref IRQContext aContext)
+        {
+            IRQ(0x39, ref aContext);
+        }
+
+        public static void HandleInterrupt_3A(ref IRQContext aContext)
+        {
+            IRQ(0x3A, ref aContext);
+        }
+
+        public static void HandleInterrupt_3B(ref IRQContext aContext)
+        {
+            IRQ(0x3B, ref aContext);
+        }
+
+        public static void HandleInterrupt_3C(ref IRQContext aContext)
+        {
+            IRQ(0x3C, ref aContext);
+        }
+
+        public static void HandleInterrupt_3D(ref IRQContext aContext)
+        {
+            IRQ(0x3D, ref aContext);
+        }
+
+        public static void HandleInterrupt_3E(ref IRQContext aContext)
+        {
+            IRQ(0x3E, ref aContext);
+        }
+
+        public static void HandleInterrupt_3F(ref IRQContext aContext)
+        {
+            IRQ(0x3F, ref aContext);
         }
 
         public static void HandleInterrupt_40(ref IRQContext aContext) {
@@ -484,6 +554,189 @@ namespace Cosmos.Core {
         public static void HandleInterrupt_49(ref IRQContext aContext) {
             IRQ(0x49, ref aContext);
         }
+
+        public static void HandleInterrupt_4A(ref IRQContext aContext) { IRQ(0x4A, ref aContext); }
+        public static void HandleInterrupt_4B(ref IRQContext aContext) { IRQ(0x4B, ref aContext); }
+        public static void HandleInterrupt_4C(ref IRQContext aContext) { IRQ(0x4C, ref aContext); }
+        public static void HandleInterrupt_4D(ref IRQContext aContext) { IRQ(0x4D, ref aContext); }
+        public static void HandleInterrupt_4E(ref IRQContext aContext) { IRQ(0x4E, ref aContext); }
+        public static void HandleInterrupt_4F(ref IRQContext aContext) { IRQ(0x4F, ref aContext); }
+        public static void HandleInterrupt_50(ref IRQContext aContext) { IRQ(0x50, ref aContext); }
+        public static void HandleInterrupt_51(ref IRQContext aContext) { IRQ(0x51, ref aContext); }
+        public static void HandleInterrupt_52(ref IRQContext aContext) { IRQ(0x52, ref aContext); }
+        public static void HandleInterrupt_53(ref IRQContext aContext) { IRQ(0x53, ref aContext); }
+        public static void HandleInterrupt_54(ref IRQContext aContext) { IRQ(0x54, ref aContext); }
+        public static void HandleInterrupt_55(ref IRQContext aContext) { IRQ(0x55, ref aContext); }
+        public static void HandleInterrupt_56(ref IRQContext aContext) { IRQ(0x56, ref aContext); }
+        public static void HandleInterrupt_57(ref IRQContext aContext) { IRQ(0x57, ref aContext); }
+        public static void HandleInterrupt_58(ref IRQContext aContext) { IRQ(0x58, ref aContext); }
+        public static void HandleInterrupt_59(ref IRQContext aContext) { IRQ(0x59, ref aContext); }
+        public static void HandleInterrupt_5A(ref IRQContext aContext) { IRQ(0x5A, ref aContext); }
+        public static void HandleInterrupt_5B(ref IRQContext aContext) { IRQ(0x5B, ref aContext); }
+        public static void HandleInterrupt_5C(ref IRQContext aContext) { IRQ(0x5C, ref aContext); }
+        public static void HandleInterrupt_5D(ref IRQContext aContext) { IRQ(0x5D, ref aContext); }
+        public static void HandleInterrupt_5E(ref IRQContext aContext) { IRQ(0x5E, ref aContext); }
+        public static void HandleInterrupt_5F(ref IRQContext aContext) { IRQ(0x5F, ref aContext); }
+        public static void HandleInterrupt_60(ref IRQContext aContext) { IRQ(0x60, ref aContext); }
+        public static void HandleInterrupt_61(ref IRQContext aContext) { IRQ(0x61, ref aContext); }
+        public static void HandleInterrupt_62(ref IRQContext aContext) { IRQ(0x62, ref aContext); }
+        public static void HandleInterrupt_63(ref IRQContext aContext) { IRQ(0x63, ref aContext); }
+        public static void HandleInterrupt_64(ref IRQContext aContext) { IRQ(0x64, ref aContext); }
+        public static void HandleInterrupt_65(ref IRQContext aContext) { IRQ(0x65, ref aContext); }
+        public static void HandleInterrupt_66(ref IRQContext aContext) { IRQ(0x66, ref aContext); }
+        public static void HandleInterrupt_67(ref IRQContext aContext) { IRQ(0x67, ref aContext); }
+        public static void HandleInterrupt_68(ref IRQContext aContext) { IRQ(0x68, ref aContext); }
+        public static void HandleInterrupt_69(ref IRQContext aContext) { IRQ(0x69, ref aContext); }
+        public static void HandleInterrupt_6A(ref IRQContext aContext) { IRQ(0x6A, ref aContext); }
+        public static void HandleInterrupt_6B(ref IRQContext aContext) { IRQ(0x6B, ref aContext); }
+        public static void HandleInterrupt_6C(ref IRQContext aContext) { IRQ(0x6C, ref aContext); }
+        public static void HandleInterrupt_6D(ref IRQContext aContext) { IRQ(0x6D, ref aContext); }
+        public static void HandleInterrupt_6E(ref IRQContext aContext) { IRQ(0x6E, ref aContext); }
+        public static void HandleInterrupt_6F(ref IRQContext aContext) { IRQ(0x6F, ref aContext); }
+        public static void HandleInterrupt_70(ref IRQContext aContext) { IRQ(0x70, ref aContext); }
+        public static void HandleInterrupt_71(ref IRQContext aContext) { IRQ(0x71, ref aContext); }
+        public static void HandleInterrupt_72(ref IRQContext aContext) { IRQ(0x72, ref aContext); }
+        public static void HandleInterrupt_73(ref IRQContext aContext) { IRQ(0x73, ref aContext); }
+        public static void HandleInterrupt_74(ref IRQContext aContext) { IRQ(0x74, ref aContext); }
+        public static void HandleInterrupt_75(ref IRQContext aContext) { IRQ(0x75, ref aContext); }
+        public static void HandleInterrupt_76(ref IRQContext aContext) { IRQ(0x76, ref aContext); }
+        public static void HandleInterrupt_77(ref IRQContext aContext) { IRQ(0x77, ref aContext); }
+        public static void HandleInterrupt_78(ref IRQContext aContext) { IRQ(0x78, ref aContext); }
+        public static void HandleInterrupt_79(ref IRQContext aContext) { IRQ(0x79, ref aContext); }
+        public static void HandleInterrupt_7A(ref IRQContext aContext) { IRQ(0x7A, ref aContext); }
+        public static void HandleInterrupt_7B(ref IRQContext aContext) { IRQ(0x7B, ref aContext); }
+        public static void HandleInterrupt_7C(ref IRQContext aContext) { IRQ(0x7C, ref aContext); }
+        public static void HandleInterrupt_7D(ref IRQContext aContext) { IRQ(0x7D, ref aContext); }
+        public static void HandleInterrupt_7E(ref IRQContext aContext) { IRQ(0x7E, ref aContext); }
+        public static void HandleInterrupt_7F(ref IRQContext aContext) { IRQ(0x7F, ref aContext); }
+        public static void HandleInterrupt_80(ref IRQContext aContext) { IRQ(0x80, ref aContext); }
+        public static void HandleInterrupt_81(ref IRQContext aContext) { IRQ(0x81, ref aContext); }
+        public static void HandleInterrupt_82(ref IRQContext aContext) { IRQ(0x82, ref aContext); }
+        public static void HandleInterrupt_83(ref IRQContext aContext) { IRQ(0x83, ref aContext); }
+        public static void HandleInterrupt_84(ref IRQContext aContext) { IRQ(0x84, ref aContext); }
+        public static void HandleInterrupt_85(ref IRQContext aContext) { IRQ(0x85, ref aContext); }
+        public static void HandleInterrupt_86(ref IRQContext aContext) { IRQ(0x86, ref aContext); }
+        public static void HandleInterrupt_87(ref IRQContext aContext) { IRQ(0x87, ref aContext); }
+        public static void HandleInterrupt_88(ref IRQContext aContext) { IRQ(0x88, ref aContext); }
+        public static void HandleInterrupt_89(ref IRQContext aContext) { IRQ(0x89, ref aContext); }
+        public static void HandleInterrupt_8A(ref IRQContext aContext) { IRQ(0x8A, ref aContext); }
+        public static void HandleInterrupt_8B(ref IRQContext aContext) { IRQ(0x8B, ref aContext); }
+        public static void HandleInterrupt_8C(ref IRQContext aContext) { IRQ(0x8C, ref aContext); }
+        public static void HandleInterrupt_8D(ref IRQContext aContext) { IRQ(0x8D, ref aContext); }
+        public static void HandleInterrupt_8E(ref IRQContext aContext) { IRQ(0x8E, ref aContext); }
+        public static void HandleInterrupt_8F(ref IRQContext aContext) { IRQ(0x8F, ref aContext); }
+        public static void HandleInterrupt_90(ref IRQContext aContext) { IRQ(0x90, ref aContext); }
+        public static void HandleInterrupt_91(ref IRQContext aContext) { IRQ(0x91, ref aContext); }
+        public static void HandleInterrupt_92(ref IRQContext aContext) { IRQ(0x92, ref aContext); }
+        public static void HandleInterrupt_93(ref IRQContext aContext) { IRQ(0x93, ref aContext); }
+        public static void HandleInterrupt_94(ref IRQContext aContext) { IRQ(0x94, ref aContext); }
+        public static void HandleInterrupt_95(ref IRQContext aContext) { IRQ(0x95, ref aContext); }
+        public static void HandleInterrupt_96(ref IRQContext aContext) { IRQ(0x96, ref aContext); }
+        public static void HandleInterrupt_97(ref IRQContext aContext) { IRQ(0x97, ref aContext); }
+        public static void HandleInterrupt_98(ref IRQContext aContext) { IRQ(0x98, ref aContext); }
+        public static void HandleInterrupt_99(ref IRQContext aContext) { IRQ(0x99, ref aContext); }
+        public static void HandleInterrupt_9A(ref IRQContext aContext) { IRQ(0x9A, ref aContext); }
+        public static void HandleInterrupt_9B(ref IRQContext aContext) { IRQ(0x9B, ref aContext); }
+        public static void HandleInterrupt_9C(ref IRQContext aContext) { IRQ(0x9C, ref aContext); }
+        public static void HandleInterrupt_9D(ref IRQContext aContext) { IRQ(0x9D, ref aContext); }
+        public static void HandleInterrupt_9E(ref IRQContext aContext) { IRQ(0x9E, ref aContext); }
+        public static void HandleInterrupt_9F(ref IRQContext aContext) { IRQ(0x9F, ref aContext); }
+        public static void HandleInterrupt_A0(ref IRQContext aContext) { IRQ(0xA0, ref aContext); }
+        public static void HandleInterrupt_A1(ref IRQContext aContext) { IRQ(0xA1, ref aContext); }
+        public static void HandleInterrupt_A2(ref IRQContext aContext) { IRQ(0xA2, ref aContext); }
+        public static void HandleInterrupt_A3(ref IRQContext aContext) { IRQ(0xA3, ref aContext); }
+        public static void HandleInterrupt_A4(ref IRQContext aContext) { IRQ(0xA4, ref aContext); }
+        public static void HandleInterrupt_A5(ref IRQContext aContext) { IRQ(0xA5, ref aContext); }
+        public static void HandleInterrupt_A6(ref IRQContext aContext) { IRQ(0xA6, ref aContext); }
+        public static void HandleInterrupt_A7(ref IRQContext aContext) { IRQ(0xA7, ref aContext); }
+        public static void HandleInterrupt_A8(ref IRQContext aContext) { IRQ(0xA8, ref aContext); }
+        public static void HandleInterrupt_A9(ref IRQContext aContext) { IRQ(0xA9, ref aContext); }
+        public static void HandleInterrupt_AA(ref IRQContext aContext) { IRQ(0xAA, ref aContext); }
+        public static void HandleInterrupt_AB(ref IRQContext aContext) { IRQ(0xAB, ref aContext); }
+        public static void HandleInterrupt_AC(ref IRQContext aContext) { IRQ(0xAC, ref aContext); }
+        public static void HandleInterrupt_AD(ref IRQContext aContext) { IRQ(0xAD, ref aContext); }
+        public static void HandleInterrupt_AE(ref IRQContext aContext) { IRQ(0xAE, ref aContext); }
+        public static void HandleInterrupt_AF(ref IRQContext aContext) { IRQ(0xAF, ref aContext); }
+        public static void HandleInterrupt_B0(ref IRQContext aContext) { IRQ(0xB0, ref aContext); }
+        public static void HandleInterrupt_B1(ref IRQContext aContext) { IRQ(0xB1, ref aContext); }
+        public static void HandleInterrupt_B2(ref IRQContext aContext) { IRQ(0xB2, ref aContext); }
+        public static void HandleInterrupt_B3(ref IRQContext aContext) { IRQ(0xB3, ref aContext); }
+        public static void HandleInterrupt_B4(ref IRQContext aContext) { IRQ(0xB4, ref aContext); }
+        public static void HandleInterrupt_B5(ref IRQContext aContext) { IRQ(0xB5, ref aContext); }
+        public static void HandleInterrupt_B6(ref IRQContext aContext) { IRQ(0xB6, ref aContext); }
+        public static void HandleInterrupt_B7(ref IRQContext aContext) { IRQ(0xB7, ref aContext); }
+        public static void HandleInterrupt_B8(ref IRQContext aContext) { IRQ(0xB8, ref aContext); }
+        public static void HandleInterrupt_B9(ref IRQContext aContext) { IRQ(0xB9, ref aContext); }
+        public static void HandleInterrupt_BA(ref IRQContext aContext) { IRQ(0xBA, ref aContext); }
+        public static void HandleInterrupt_BB(ref IRQContext aContext) { IRQ(0xBB, ref aContext); }
+        public static void HandleInterrupt_BC(ref IRQContext aContext) { IRQ(0xBC, ref aContext); }
+        public static void HandleInterrupt_BD(ref IRQContext aContext) { IRQ(0xBD, ref aContext); }
+        public static void HandleInterrupt_BE(ref IRQContext aContext) { IRQ(0xBE, ref aContext); }
+        public static void HandleInterrupt_BF(ref IRQContext aContext) { IRQ(0xBF, ref aContext); }
+        public static void HandleInterrupt_C0(ref IRQContext aContext) { IRQ(0xC0, ref aContext); }
+        public static void HandleInterrupt_C1(ref IRQContext aContext) { IRQ(0xC1, ref aContext); }
+        public static void HandleInterrupt_C2(ref IRQContext aContext) { IRQ(0xC2, ref aContext); }
+        public static void HandleInterrupt_C3(ref IRQContext aContext) { IRQ(0xC3, ref aContext); }
+        public static void HandleInterrupt_C4(ref IRQContext aContext) { IRQ(0xC4, ref aContext); }
+        public static void HandleInterrupt_C5(ref IRQContext aContext) { IRQ(0xC5, ref aContext); }
+        public static void HandleInterrupt_C6(ref IRQContext aContext) { IRQ(0xC6, ref aContext); }
+        public static void HandleInterrupt_C7(ref IRQContext aContext) { IRQ(0xC7, ref aContext); }
+        public static void HandleInterrupt_C8(ref IRQContext aContext) { IRQ(0xC8, ref aContext); }
+        public static void HandleInterrupt_C9(ref IRQContext aContext) { IRQ(0xC9, ref aContext); }
+        public static void HandleInterrupt_CA(ref IRQContext aContext) { IRQ(0xCA, ref aContext); }
+        public static void HandleInterrupt_CB(ref IRQContext aContext) { IRQ(0xCB, ref aContext); }
+        public static void HandleInterrupt_CC(ref IRQContext aContext) { IRQ(0xCC, ref aContext); }
+        public static void HandleInterrupt_CD(ref IRQContext aContext) { IRQ(0xCD, ref aContext); }
+        public static void HandleInterrupt_CE(ref IRQContext aContext) { IRQ(0xCE, ref aContext); }
+        public static void HandleInterrupt_CF(ref IRQContext aContext) { IRQ(0xCF, ref aContext); }
+        public static void HandleInterrupt_D0(ref IRQContext aContext) { IRQ(0xD0, ref aContext); }
+        public static void HandleInterrupt_D1(ref IRQContext aContext) { IRQ(0xD1, ref aContext); }
+        public static void HandleInterrupt_D2(ref IRQContext aContext) { IRQ(0xD2, ref aContext); }
+        public static void HandleInterrupt_D3(ref IRQContext aContext) { IRQ(0xD3, ref aContext); }
+        public static void HandleInterrupt_D4(ref IRQContext aContext) { IRQ(0xD4, ref aContext); }
+        public static void HandleInterrupt_D5(ref IRQContext aContext) { IRQ(0xD5, ref aContext); }
+        public static void HandleInterrupt_D6(ref IRQContext aContext) { IRQ(0xD6, ref aContext); }
+        public static void HandleInterrupt_D7(ref IRQContext aContext) { IRQ(0xD7, ref aContext); }
+        public static void HandleInterrupt_D8(ref IRQContext aContext) { IRQ(0xD8, ref aContext); }
+        public static void HandleInterrupt_D9(ref IRQContext aContext) { IRQ(0xD9, ref aContext); }
+        public static void HandleInterrupt_DA(ref IRQContext aContext) { IRQ(0xDA, ref aContext); }
+        public static void HandleInterrupt_DB(ref IRQContext aContext) { IRQ(0xDB, ref aContext); }
+        public static void HandleInterrupt_DC(ref IRQContext aContext) { IRQ(0xDC, ref aContext); }
+        public static void HandleInterrupt_DD(ref IRQContext aContext) { IRQ(0xDD, ref aContext); }
+        public static void HandleInterrupt_DE(ref IRQContext aContext) { IRQ(0xDE, ref aContext); }
+        public static void HandleInterrupt_DF(ref IRQContext aContext) { IRQ(0xDF, ref aContext); }
+        public static void HandleInterrupt_E0(ref IRQContext aContext) { IRQ(0xE0, ref aContext); }
+        public static void HandleInterrupt_E1(ref IRQContext aContext) { IRQ(0xE1, ref aContext); }
+        public static void HandleInterrupt_E2(ref IRQContext aContext) { IRQ(0xE2, ref aContext); }
+        public static void HandleInterrupt_E3(ref IRQContext aContext) { IRQ(0xE3, ref aContext); }
+        public static void HandleInterrupt_E4(ref IRQContext aContext) { IRQ(0xE4, ref aContext); }
+        public static void HandleInterrupt_E5(ref IRQContext aContext) { IRQ(0xE5, ref aContext); }
+        public static void HandleInterrupt_E6(ref IRQContext aContext) { IRQ(0xE6, ref aContext); }
+        public static void HandleInterrupt_E7(ref IRQContext aContext) { IRQ(0xE7, ref aContext); }
+        public static void HandleInterrupt_E8(ref IRQContext aContext) { IRQ(0xE8, ref aContext); }
+        public static void HandleInterrupt_E9(ref IRQContext aContext) { IRQ(0xE9, ref aContext); }
+        public static void HandleInterrupt_EA(ref IRQContext aContext) { IRQ(0xEA, ref aContext); }
+        public static void HandleInterrupt_EB(ref IRQContext aContext) { IRQ(0xEB, ref aContext); }
+        public static void HandleInterrupt_EC(ref IRQContext aContext) { IRQ(0xEC, ref aContext); }
+        public static void HandleInterrupt_ED(ref IRQContext aContext) { IRQ(0xED, ref aContext); }
+        public static void HandleInterrupt_EE(ref IRQContext aContext) { IRQ(0xEE, ref aContext); }
+        public static void HandleInterrupt_EF(ref IRQContext aContext) { IRQ(0xEF, ref aContext); }
+        public static void HandleInterrupt_F0(ref IRQContext aContext) { IRQ(0xF0, ref aContext); }
+        public static void HandleInterrupt_F1(ref IRQContext aContext) { IRQ(0xF1, ref aContext); }
+        public static void HandleInterrupt_F2(ref IRQContext aContext) { IRQ(0xF2, ref aContext); }
+        public static void HandleInterrupt_F3(ref IRQContext aContext) { IRQ(0xF3, ref aContext); }
+        public static void HandleInterrupt_F4(ref IRQContext aContext) { IRQ(0xF4, ref aContext); }
+        public static void HandleInterrupt_F5(ref IRQContext aContext) { IRQ(0xF5, ref aContext); }
+        public static void HandleInterrupt_F6(ref IRQContext aContext) { IRQ(0xF6, ref aContext); }
+        public static void HandleInterrupt_F7(ref IRQContext aContext) { IRQ(0xF7, ref aContext); }
+        public static void HandleInterrupt_F8(ref IRQContext aContext) { IRQ(0xF8, ref aContext); }
+        public static void HandleInterrupt_F9(ref IRQContext aContext) { IRQ(0xF9, ref aContext); }
+        public static void HandleInterrupt_FA(ref IRQContext aContext) { IRQ(0xFA, ref aContext); }
+        public static void HandleInterrupt_FB(ref IRQContext aContext) { IRQ(0xFB, ref aContext); }
+        public static void HandleInterrupt_FC(ref IRQContext aContext) { IRQ(0xFC, ref aContext); }
+        public static void HandleInterrupt_FD(ref IRQContext aContext) { IRQ(0xFD, ref aContext); }
+        public static void HandleInterrupt_FE(ref IRQContext aContext) { IRQ(0xFE, ref aContext); }
+        public static void HandleInterrupt_FF(ref IRQContext aContext) { IRQ(0xFF, ref aContext); }
 
         #endregion
 
@@ -841,7 +1094,21 @@ namespace Cosmos.Core {
                     HandleInterrupt_2E(ref xCtx);
                     HandleInterrupt_2F(ref xCtx);
                     HandleInterrupt_30(ref xCtx);
+                    HandleInterrupt_31(ref xCtx);
+                    HandleInterrupt_32(ref xCtx);
+                    HandleInterrupt_33(ref xCtx);
+                    HandleInterrupt_34(ref xCtx);
                     HandleInterrupt_35(ref xCtx);
+                    HandleInterrupt_36(ref xCtx);
+                    HandleInterrupt_37(ref xCtx);
+                    HandleInterrupt_38(ref xCtx);
+                    HandleInterrupt_39(ref xCtx);
+                    HandleInterrupt_3A(ref xCtx);
+                    HandleInterrupt_3B(ref xCtx);
+                    HandleInterrupt_3C(ref xCtx);
+                    HandleInterrupt_3D(ref xCtx);
+                    HandleInterrupt_3E(ref xCtx);
+                    HandleInterrupt_3F(ref xCtx);
                     HandleInterrupt_40(ref xCtx);
                     HandleInterrupt_41(ref xCtx);
                     HandleInterrupt_42(ref xCtx);
@@ -852,6 +1119,188 @@ namespace Cosmos.Core {
                     HandleInterrupt_47(ref xCtx);
                     HandleInterrupt_48(ref xCtx);
                     HandleInterrupt_49(ref xCtx);
+                    HandleInterrupt_4A(ref xCtx);
+                    HandleInterrupt_4B(ref xCtx);
+                    HandleInterrupt_4C(ref xCtx);
+                    HandleInterrupt_4D(ref xCtx);
+                    HandleInterrupt_4E(ref xCtx);
+                    HandleInterrupt_4F(ref xCtx);
+                    HandleInterrupt_50(ref xCtx);
+                    HandleInterrupt_51(ref xCtx);
+                    HandleInterrupt_52(ref xCtx);
+                    HandleInterrupt_53(ref xCtx);
+                    HandleInterrupt_54(ref xCtx);
+                    HandleInterrupt_55(ref xCtx);
+                    HandleInterrupt_56(ref xCtx);
+                    HandleInterrupt_57(ref xCtx);
+                    HandleInterrupt_58(ref xCtx);
+                    HandleInterrupt_59(ref xCtx);
+                    HandleInterrupt_5A(ref xCtx);
+                    HandleInterrupt_5B(ref xCtx);
+                    HandleInterrupt_5C(ref xCtx);
+                    HandleInterrupt_5D(ref xCtx);
+                    HandleInterrupt_5E(ref xCtx);
+                    HandleInterrupt_5F(ref xCtx);
+                    HandleInterrupt_60(ref xCtx);
+                    HandleInterrupt_61(ref xCtx);
+                    HandleInterrupt_62(ref xCtx);
+                    HandleInterrupt_63(ref xCtx);
+                    HandleInterrupt_64(ref xCtx);
+                    HandleInterrupt_65(ref xCtx);
+                    HandleInterrupt_66(ref xCtx);
+                    HandleInterrupt_67(ref xCtx);
+                    HandleInterrupt_68(ref xCtx);
+                    HandleInterrupt_69(ref xCtx);
+                    HandleInterrupt_6A(ref xCtx);
+                    HandleInterrupt_6B(ref xCtx);
+                    HandleInterrupt_6C(ref xCtx);
+                    HandleInterrupt_6D(ref xCtx);
+                    HandleInterrupt_6E(ref xCtx);
+                    HandleInterrupt_6F(ref xCtx);
+                    HandleInterrupt_70(ref xCtx);
+                    HandleInterrupt_71(ref xCtx);
+                    HandleInterrupt_72(ref xCtx);
+                    HandleInterrupt_73(ref xCtx);
+                    HandleInterrupt_74(ref xCtx);
+                    HandleInterrupt_75(ref xCtx);
+                    HandleInterrupt_76(ref xCtx);
+                    HandleInterrupt_77(ref xCtx);
+                    HandleInterrupt_78(ref xCtx);
+                    HandleInterrupt_79(ref xCtx);
+                    HandleInterrupt_7A(ref xCtx);
+                    HandleInterrupt_7B(ref xCtx);
+                    HandleInterrupt_7C(ref xCtx);
+                    HandleInterrupt_7D(ref xCtx);
+                    HandleInterrupt_7E(ref xCtx);
+                    HandleInterrupt_7F(ref xCtx);
+                    HandleInterrupt_80(ref xCtx);
+                    HandleInterrupt_81(ref xCtx);
+                    HandleInterrupt_82(ref xCtx);
+                    HandleInterrupt_83(ref xCtx);
+                    HandleInterrupt_84(ref xCtx);
+                    HandleInterrupt_85(ref xCtx);
+                    HandleInterrupt_86(ref xCtx);
+                    HandleInterrupt_87(ref xCtx);
+                    HandleInterrupt_88(ref xCtx);
+                    HandleInterrupt_89(ref xCtx);
+                    HandleInterrupt_8A(ref xCtx);
+                    HandleInterrupt_8B(ref xCtx);
+                    HandleInterrupt_8C(ref xCtx);
+                    HandleInterrupt_8D(ref xCtx);
+                    HandleInterrupt_8E(ref xCtx);
+                    HandleInterrupt_8F(ref xCtx);
+                    HandleInterrupt_90(ref xCtx);
+                    HandleInterrupt_91(ref xCtx);
+                    HandleInterrupt_92(ref xCtx);
+                    HandleInterrupt_93(ref xCtx);
+                    HandleInterrupt_94(ref xCtx);
+                    HandleInterrupt_95(ref xCtx);
+                    HandleInterrupt_96(ref xCtx);
+                    HandleInterrupt_97(ref xCtx);
+                    HandleInterrupt_98(ref xCtx);
+                    HandleInterrupt_99(ref xCtx);
+                    HandleInterrupt_9A(ref xCtx);
+                    HandleInterrupt_9B(ref xCtx);
+                    HandleInterrupt_9C(ref xCtx);
+                    HandleInterrupt_9D(ref xCtx);
+                    HandleInterrupt_9E(ref xCtx);
+                    HandleInterrupt_9F(ref xCtx);
+                    HandleInterrupt_A0(ref xCtx);
+                    HandleInterrupt_A1(ref xCtx);
+                    HandleInterrupt_A2(ref xCtx);
+                    HandleInterrupt_A3(ref xCtx);
+                    HandleInterrupt_A4(ref xCtx);
+                    HandleInterrupt_A5(ref xCtx);
+                    HandleInterrupt_A6(ref xCtx);
+                    HandleInterrupt_A7(ref xCtx);
+                    HandleInterrupt_A8(ref xCtx);
+                    HandleInterrupt_A9(ref xCtx);
+                    HandleInterrupt_AA(ref xCtx);
+                    HandleInterrupt_AB(ref xCtx);
+                    HandleInterrupt_AC(ref xCtx);
+                    HandleInterrupt_AD(ref xCtx);
+                    HandleInterrupt_AE(ref xCtx);
+                    HandleInterrupt_AF(ref xCtx);
+                    HandleInterrupt_B0(ref xCtx);
+                    HandleInterrupt_B1(ref xCtx);
+                    HandleInterrupt_B2(ref xCtx);
+                    HandleInterrupt_B3(ref xCtx);
+                    HandleInterrupt_B4(ref xCtx);
+                    HandleInterrupt_B5(ref xCtx);
+                    HandleInterrupt_B6(ref xCtx);
+                    HandleInterrupt_B7(ref xCtx);
+                    HandleInterrupt_B8(ref xCtx);
+                    HandleInterrupt_B9(ref xCtx);
+                    HandleInterrupt_BA(ref xCtx);
+                    HandleInterrupt_BB(ref xCtx);
+                    HandleInterrupt_BC(ref xCtx);
+                    HandleInterrupt_BD(ref xCtx);
+                    HandleInterrupt_BE(ref xCtx);
+                    HandleInterrupt_BF(ref xCtx);
+                    HandleInterrupt_C0(ref xCtx);
+                    HandleInterrupt_C1(ref xCtx);
+                    HandleInterrupt_C2(ref xCtx);
+                    HandleInterrupt_C3(ref xCtx);
+                    HandleInterrupt_C4(ref xCtx);
+                    HandleInterrupt_C5(ref xCtx);
+                    HandleInterrupt_C6(ref xCtx);
+                    HandleInterrupt_C7(ref xCtx);
+                    HandleInterrupt_C8(ref xCtx);
+                    HandleInterrupt_C9(ref xCtx);
+                    HandleInterrupt_CA(ref xCtx);
+                    HandleInterrupt_CB(ref xCtx);
+                    HandleInterrupt_CC(ref xCtx);
+                    HandleInterrupt_CD(ref xCtx);
+                    HandleInterrupt_CE(ref xCtx);
+                    HandleInterrupt_CF(ref xCtx);
+                    HandleInterrupt_D0(ref xCtx);
+                    HandleInterrupt_D1(ref xCtx);
+                    HandleInterrupt_D2(ref xCtx);
+                    HandleInterrupt_D3(ref xCtx);
+                    HandleInterrupt_D4(ref xCtx);
+                    HandleInterrupt_D5(ref xCtx);
+                    HandleInterrupt_D6(ref xCtx);
+                    HandleInterrupt_D7(ref xCtx);
+                    HandleInterrupt_D8(ref xCtx);
+                    HandleInterrupt_D9(ref xCtx);
+                    HandleInterrupt_DA(ref xCtx);
+                    HandleInterrupt_DB(ref xCtx);
+                    HandleInterrupt_DC(ref xCtx);
+                    HandleInterrupt_DD(ref xCtx);
+                    HandleInterrupt_DE(ref xCtx);
+                    HandleInterrupt_DF(ref xCtx);
+                    HandleInterrupt_E0(ref xCtx);
+                    HandleInterrupt_E1(ref xCtx);
+                    HandleInterrupt_E2(ref xCtx);
+                    HandleInterrupt_E3(ref xCtx);
+                    HandleInterrupt_E4(ref xCtx);
+                    HandleInterrupt_E5(ref xCtx);
+                    HandleInterrupt_E6(ref xCtx);
+                    HandleInterrupt_E7(ref xCtx);
+                    HandleInterrupt_E8(ref xCtx);
+                    HandleInterrupt_E9(ref xCtx);
+                    HandleInterrupt_EA(ref xCtx);
+                    HandleInterrupt_EB(ref xCtx);
+                    HandleInterrupt_EC(ref xCtx);
+                    HandleInterrupt_ED(ref xCtx);
+                    HandleInterrupt_EE(ref xCtx);
+                    HandleInterrupt_EF(ref xCtx);
+                    HandleInterrupt_F0(ref xCtx);
+                    HandleInterrupt_F1(ref xCtx);
+                    HandleInterrupt_F2(ref xCtx);
+                    HandleInterrupt_F3(ref xCtx);
+                    HandleInterrupt_F4(ref xCtx);
+                    HandleInterrupt_F5(ref xCtx);
+                    HandleInterrupt_F6(ref xCtx);
+                    HandleInterrupt_F7(ref xCtx);
+                    HandleInterrupt_F8(ref xCtx);
+                    HandleInterrupt_F9(ref xCtx);
+                    HandleInterrupt_FA(ref xCtx);
+                    HandleInterrupt_FB(ref xCtx);
+                    HandleInterrupt_FC(ref xCtx);
+                    HandleInterrupt_FD(ref xCtx);
+                    HandleInterrupt_FE(ref xCtx);
+                    HandleInterrupt_FF(ref xCtx);
                 }
             }
         }
