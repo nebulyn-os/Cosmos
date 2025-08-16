@@ -30,5 +30,33 @@ namespace Cosmos.Core_Asm
         {
             throw new NotImplementedException();
         }
+
+        [PlugMethod()]
+        public static unsafe bool IsSimpleCopy(Array sourceArray, Array destinationArray)
+        {
+            return false;
+        }
+
+        public enum ArrayAssignType
+        {
+            SimpleCopy,
+            WrongType,
+            MustCast,
+            BoxValueClassOrPrimitive,
+            UnboxValueClass,
+            PrimitiveWiden,
+        }
+
+        [PlugMethod()]
+        public static void CopySlow(Array sourceArray, int sourceIndex, Array destinationArray, int destinationIndex, int length, ArrayAssignType assignType)
+        {
+            throw new NotImplementedException("CopySlow() not Impl'd.");
+        }
+
+        [PlugMethod()]
+        public static void CopySlow(Array sourceArray, int sourceIndex, Array destinationArray, int destinationIndex, int length)
+        {
+            throw new NotImplementedException("CopySlow() not Impl'd.");
+        }
     }
 }

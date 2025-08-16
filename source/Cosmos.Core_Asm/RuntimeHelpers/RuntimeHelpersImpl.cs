@@ -42,5 +42,20 @@ namespace Cosmos.Core_Asm
 
             XS.Label(".EndLoop");
         }
+
+        [PlugMethod()]
+        public static unsafe ref byte GetSpanDataFrom(IntPtr fldHandle, IntPtr targetTypeHandle, IntPtr count)
+        {
+            throw new NotImplementedException("GetSpanDataFrom() not Impl'd.");
+        }
+
+        [PlugMethod()]
+        public static unsafe ref byte GetSpanDataFrom(
+            RuntimeFieldHandle fldHandle,
+            RuntimeTypeHandle targetTypeHandle,
+            out int count)
+        {
+            throw new NotImplementedException("GetSpanDataFrom() not Impl'd.");
+        }
     }
 }

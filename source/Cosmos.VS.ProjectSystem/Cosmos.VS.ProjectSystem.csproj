@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.SDK">
+<Project Sdk="Microsoft.NET.SDK">
 
     <PropertyGroup>
         <TargetFramework>net48</TargetFramework>
