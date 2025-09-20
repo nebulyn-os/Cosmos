@@ -59,25 +59,33 @@ namespace Cosmos.System.FileSystem.ExFAT
             uint sectorsPerCluster = (uint)(1u << sectorsPerClusterShift);
             uint bytesPerCluster = bytesPerSector * sectorsPerCluster;
 
-            // exFAT layout: [BootRegion=12] [FAT] [ClusterHeap] [...BackupBootRegion=12 at end]
+            // exFAT layout: [Main Boot Region (0..11)] [Backup Boot Region (12..23)] [FAT] [ClusterHeap]
             uint numberOfFats = 1;
-            uint fatOffset = 12; // start after boot region (12 sectors)
+            uint fatOffset = 24; // FAT must start at sector >= 24 (after main+backup boot regions)
             uint fatLength = 0; // to compute
             uint clusterHeapOffset = 0; // to compute
             uint clusterCount = 0; // to compute
 
             // Iterate once or twice to converge FAT length and cluster count
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < 6; i++)
             {
                 clusterHeapOffset = fatOffset + fatLength;
-                // Reserve the last 12 sectors for the backup boot region
-                ulong usableSectorsEnd = totalSectors > 12 ? totalSectors - 12 : 0;
-                ulong clusterHeapSectors = usableSectorsEnd > clusterHeapOffset ? usableSectorsEnd - clusterHeapOffset : 0;
+                // Ensure cluster heap starts at a cluster boundary by padding FAT length
+                uint remainder = (uint)(clusterHeapOffset % sectorsPerCluster);
+                if (remainder != 0)
+                {
+                    uint pad = sectorsPerCluster - remainder;
+                    fatLength += pad;
+                    clusterHeapOffset = fatOffset + fatLength;
+                }
+                // Compute available sectors for Cluster Heap through end of volume
+                ulong usableSectorsEnd = totalSectors;
+                ulong clusterHeapSectors = usableSectorsEnd > clusterHeapOffset ? (usableSectorsEnd - clusterHeapOffset) : 0;
                 uint newClusterCount = (uint)(clusterHeapSectors / sectorsPerCluster);
-                if (newClusterCount < 8)
+                if (newClusterCount < 16)
                 {
                     // ensure some minimal cluster count
-                    newClusterCount = 8;
+                    newClusterCount = 16;
                 }
                 uint fatEntries = newClusterCount + 2; // include clusters starting at 2
                 uint newFatLength = (uint)(((ulong)fatEntries * 4 + bytesPerSector - 1) / bytesPerSector);
@@ -89,10 +97,8 @@ namespace Cosmos.System.FileSystem.ExFAT
                 clusterCount = newClusterCount;
             }
 
-            // Allocate clusters for system files
+            // Allocate clusters for system files (prefer Allocation Bitmap at cluster 2, then Up-case, then Root Dir)
             uint nextCluster = 2;
-            uint rootDirCluster = nextCluster++;
-
             // Allocation Bitmap length (in bytes) and clusters needed
             ulong bitmapBytes = (ulong)((clusterCount + 7) / 8);
             uint bitmapClusters = (uint)((bitmapBytes + bytesPerCluster - 1) / bytesPerCluster);
@@ -113,10 +119,13 @@ namespace Cosmos.System.FileSystem.ExFAT
             uint upcaseFirstCluster = nextCluster;
             nextCluster += upcaseClusters;
 
+            // Root directory cluster (placed after bitmap and up-case)
+            uint rootDirCluster = nextCluster++;
+
             // Percent in use (rough approximation)
             byte percentInUse = clusterCount == 0 ? (byte)0 : (byte)Math.Min(100, (int)((nextCluster - 2) * 100 / clusterCount));
 
-            // Build boot region (11 sectors: VBR + 8 extended + 2 reserved) and checksum sector (12th)
+            // Build boot region (11 sectors: VBR + 8 extended + OEM Parameters + Reserved) and checksum sector (12th)
             byte[] bootAll = new byte[bytesPerSector * 11];
             // VBR at sector 0
             {
@@ -142,28 +151,37 @@ namespace Cosmos.System.FileSystem.ExFAT
                 BitConverter.GetBytes(rootDirCluster).CopyTo(vbr, 0x60);
                 // VolumeSerialNumber @0x64
                 BitConverter.GetBytes((uint)(DateTime.UtcNow.Ticks & 0xFFFFFFFF)).CopyTo(vbr, 0x64);
-                // FileSystemRevision @0x68 (1.3) for broad compatibility
-                BitConverter.GetBytes((ushort)0x0103).CopyTo(vbr, 0x68);
+                // FileSystemRevision @0x68 (1.0)
+                BitConverter.GetBytes((ushort)0x0100).CopyTo(vbr, 0x68);
                 // VolumeFlags @0x6A
                 BitConverter.GetBytes((ushort)0).CopyTo(vbr, 0x6A);
                 // BytesPerSectorShift @0x6C, SectorsPerClusterShift @0x6D, NumberOfFats @0x6E, DriveSelect @0x6F
                 vbr[0x6C] = bytesPerSectorShift;
                 vbr[0x6D] = sectorsPerClusterShift;
                 vbr[0x6E] = (byte)numberOfFats;
-                vbr[0x6F] = 0x00; // reserved
+                vbr[0x6F] = 0x80; // common value used by Windows format
                 // PercentInUse @0x70 (0xFF = unknown)
                 vbr[0x70] = 0xFF;
+                // BootCode field (offset 120..(BytesPerSector-2)) should be 0xF4 when not bootable
+                for (int i = 120; i < bytesPerSector - 2; i++)
+                {
+                    vbr[i] = 0xF4;
+                }
                 // Signature 0xAA55
                 vbr[510] = 0x55; vbr[511] = 0xAA;
                 Buffer.BlockCopy(vbr, 0, bootAll, 0, (int)bytesPerSector);
             }
-            // Extended boot sectors (1..10) - zeroed with signature
-            for (int s = 1; s < 11; s++)
+            // Extended boot sectors (1..8): zeroed with ExtendedBootSignature (0xAA550000) at last 4 bytes
+            for (int s = 1; s <= 8; s++)
             {
                 int off = s * (int)bytesPerSector;
-                // filled with zeros by default
-                bootAll[off + 510] = 0x55; bootAll[off + 511] = 0xAA;
+                // zeros by default; write extended signature at end of sector
+                bootAll[off + bytesPerSector - 4] = 0x00;
+                bootAll[off + bytesPerSector - 3] = 0x00;
+                bootAll[off + bytesPerSector - 2] = 0x55;
+                bootAll[off + bytesPerSector - 1] = 0xAA;
             }
+            // Sector 9 (OEM Parameters) and sector 10 (Reserved) remain zero-filled
             // Compute boot checksum (treat VolumeFlags[0x6A..0x6B] and PercentInUse[0x70] as zero per spec)
             uint bootCk = ComputeBootRegionChecksum(bootAll, (int)bytesPerSector);
             // Write main boot region (first 11 sectors)
@@ -185,9 +203,9 @@ namespace Cosmos.System.FileSystem.ExFAT
                 }
                 aDevice.WriteBlock(11, 1, ref ck);
             }
-            // Write backup boot region at end (last 12 sectors)
+            // Write backup boot region at sectors 12..23
             {
-                ulong backupStart = totalSectors >= 12 ? totalSectors - 12 : 0;
+                ulong backupStart = 12UL;
                 for (uint i = 0; i < 11; i++)
                 {
                     byte[] sec = new byte[bytesPerSector];
@@ -226,8 +244,6 @@ namespace Cosmos.System.FileSystem.ExFAT
             // Reserved FAT entries
             SetFat(0, 0xFFFFFFF8);
             SetFat(1, 0xFFFFFFFF);
-            // Root dir single cluster EOC
-            SetFat(rootDirCluster, 0xFFFFFFFF);
             // Allocation bitmap chain
             for (uint i = 0; i < bitmapClusters; i++)
             {
@@ -242,6 +258,8 @@ namespace Cosmos.System.FileSystem.ExFAT
                 uint val = (i == upcaseClusters - 1) ? 0xFFFFFFFFu : (c + 1);
                 SetFat(c, val);
             }
+            // Root dir single cluster EOC
+            SetFat(rootDirCluster, 0xFFFFFFFF);
 
             // Write FAT sectors
             for (uint s = 0; s < fatLength; s++)
@@ -268,7 +286,6 @@ namespace Cosmos.System.FileSystem.ExFAT
                     bmData[byteIndex] |= (byte)(1 << bitInByte);
                 }
             }
-            SetBit(rootDirCluster);
             for (uint i = 0; i < bitmapClusters; i++)
             {
                 SetBit(bitmapFirstCluster + i);
@@ -277,6 +294,7 @@ namespace Cosmos.System.FileSystem.ExFAT
             {
                 SetBit(upcaseFirstCluster + i);
             }
+            SetBit(rootDirCluster);
 
             // Write bmData to cluster heap
             for (uint i = 0; i < bitmapClusters; i++)
