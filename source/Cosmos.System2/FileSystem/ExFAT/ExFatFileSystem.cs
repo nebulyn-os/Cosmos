@@ -103,9 +103,15 @@ namespace Cosmos.System.FileSystem.ExFAT
             uint bitmapFirstCluster = nextCluster;
             nextCluster += bitmapClusters;
 
-            // Up-case table: allocate 1 cluster with trivial data
-            uint upcaseFirstCluster = nextCluster++;
-            ulong upcaseBytes = bytesPerCluster; // simple 1-cluster table
+            // Up-case table: allocate canonical size 128 KiB (65536 UTF-16 entries)
+            ulong upcaseBytes = 128UL * 1024UL;
+            uint upcaseClusters = (uint)((upcaseBytes + bytesPerCluster - 1) / bytesPerCluster);
+            if (upcaseClusters == 0)
+            {
+                upcaseClusters = 1;
+            }
+            uint upcaseFirstCluster = nextCluster;
+            nextCluster += upcaseClusters;
 
             // Percent in use (rough approximation)
             byte percentInUse = clusterCount == 0 ? (byte)0 : (byte)Math.Min(100, (int)((nextCluster - 2) * 100 / clusterCount));
@@ -121,7 +127,9 @@ namespace Cosmos.System.FileSystem.ExFAT
                 }
                 vbr[0] = 0xEB; vbr[1] = 0x76; vbr[2] = 0x90; // JMP short, NOP
                 Encoding.ASCII.GetBytes("EXFAT   ").CopyTo(vbr, 3);
-                // PartitionOffset (0) @0x40
+                // PartitionOffset (absolute LBA of this partition on the physical disk) @0x40
+                ulong partitionOffset = aDevice.StartingSector;
+                BitConverter.GetBytes(partitionOffset).CopyTo(vbr, 0x40);
                 // VolumeLength (sectors) @0x48 (8 bytes)
                 BitConverter.GetBytes(totalSectors).CopyTo(vbr, 0x48);
                 // FATOffset @0x50, FATLength @0x54
@@ -134,17 +142,17 @@ namespace Cosmos.System.FileSystem.ExFAT
                 BitConverter.GetBytes(rootDirCluster).CopyTo(vbr, 0x60);
                 // VolumeSerialNumber @0x64
                 BitConverter.GetBytes((uint)(DateTime.UtcNow.Ticks & 0xFFFFFFFF)).CopyTo(vbr, 0x64);
-                // FileSystemRevision @0x68 (1.0)
-                BitConverter.GetBytes((ushort)0x0100).CopyTo(vbr, 0x68);
+                // FileSystemRevision @0x68 (1.3) for broad compatibility
+                BitConverter.GetBytes((ushort)0x0103).CopyTo(vbr, 0x68);
                 // VolumeFlags @0x6A
                 BitConverter.GetBytes((ushort)0).CopyTo(vbr, 0x6A);
                 // BytesPerSectorShift @0x6C, SectorsPerClusterShift @0x6D, NumberOfFats @0x6E, DriveSelect @0x6F
                 vbr[0x6C] = bytesPerSectorShift;
                 vbr[0x6D] = sectorsPerClusterShift;
                 vbr[0x6E] = (byte)numberOfFats;
-                vbr[0x6F] = 0x80; // fixed disk
-                // PercentInUse @0x70
-                vbr[0x70] = percentInUse;
+                vbr[0x6F] = 0x00; // reserved
+                // PercentInUse @0x70 (0xFF = unknown)
+                vbr[0x70] = 0xFF;
                 // Signature 0xAA55
                 vbr[510] = 0x55; vbr[511] = 0xAA;
                 Buffer.BlockCopy(vbr, 0, bootAll, 0, (int)bytesPerSector);
@@ -156,8 +164,8 @@ namespace Cosmos.System.FileSystem.ExFAT
                 // filled with zeros by default
                 bootAll[off + 510] = 0x55; bootAll[off + 511] = 0xAA;
             }
-            // Compute boot checksum (32-bit rotate-right add over the 11 sectors)
-            uint bootCk = ComputeChecksum32(bootAll, 0, bootAll.Length);
+            // Compute boot checksum (treat VolumeFlags[0x6A..0x6B] and PercentInUse[0x70] as zero per spec)
+            uint bootCk = ComputeBootRegionChecksum(bootAll, (int)bytesPerSector);
             // Write main boot region (first 11 sectors)
             for (uint i = 0; i < 11; i++)
             {
@@ -215,6 +223,9 @@ namespace Cosmos.System.FileSystem.ExFAT
                 fatBytes[off + 3] = (byte)((value >> 24) & 0xFF);
             }
 
+            // Reserved FAT entries
+            SetFat(0, 0xFFFFFFF8);
+            SetFat(1, 0xFFFFFFFF);
             // Root dir single cluster EOC
             SetFat(rootDirCluster, 0xFFFFFFFF);
             // Allocation bitmap chain
@@ -224,8 +235,13 @@ namespace Cosmos.System.FileSystem.ExFAT
                 uint val = (i == bitmapClusters - 1) ? 0xFFFFFFFFu : (c + 1);
                 SetFat(c, val);
             }
-            // Up-case single cluster EOC
-            SetFat(upcaseFirstCluster, 0xFFFFFFFF);
+            // Up-case cluster chain EOC on last, link intermediate
+            for (uint i = 0; i < upcaseClusters; i++)
+            {
+                uint c = upcaseFirstCluster + i;
+                uint val = (i == upcaseClusters - 1) ? 0xFFFFFFFFu : (c + 1);
+                SetFat(c, val);
+            }
 
             // Write FAT sectors
             for (uint s = 0; s < fatLength; s++)
@@ -257,7 +273,10 @@ namespace Cosmos.System.FileSystem.ExFAT
             {
                 SetBit(bitmapFirstCluster + i);
             }
-            SetBit(upcaseFirstCluster);
+            for (uint i = 0; i < upcaseClusters; i++)
+            {
+                SetBit(upcaseFirstCluster + i);
+            }
 
             // Write bmData to cluster heap
             for (uint i = 0; i < bitmapClusters; i++)
@@ -275,20 +294,45 @@ namespace Cosmos.System.FileSystem.ExFAT
                 }
             }
 
-            // Write Up-case table (trivial zeroed table)
+            // Build and write Up-case table content and compute checksum
+            uint upChecksum;
             {
-                uint cl = upcaseFirstCluster;
-                ulong lba = clusterHeapOffset + (ulong)(cl - 2) * sectorsPerCluster;
-                byte[] clBuf = new byte[bytesPerCluster];
-                for (int i = 0; i < clBuf.Length; i++)
+                byte[] upBuf = new byte[upcaseClusters * bytesPerCluster];
+                // Fill mapping: U+0000..U+FFFF 16-bit uppercase; map ASCII a-z to A-Z; identity for others
+                for (int cp = 0; cp <= 0xFFFF; cp++)
                 {
-                    clBuf[i] = 0;
+                    ushort upper = (ushort)cp;
+                    if (cp >= 0x61 && cp <= 0x7A)
+                    {
+                        upper = (ushort)(cp - 0x20);
+                    }
+                    int off = cp * 2;
+                    upBuf[off] = (byte)(upper & 0xFF);
+                    upBuf[off + 1] = (byte)((upper >> 8) & 0xFF);
                 }
-                for (uint j = 0; j < sectorsPerCluster; j++)
+                upChecksum = ComputeChecksum32(upBuf, 0, (int)upcaseBytes);
+                // Write across clusters
+                int remaining = (int)upcaseBytes;
+                int srcOff = 0;
+                for (uint i = 0; i < upcaseClusters; i++)
                 {
-                    byte[] sec = new byte[bytesPerSector];
-                    Buffer.BlockCopy(clBuf, (int)(j * bytesPerSector), sec, 0, (int)bytesPerSector);
-                    aDevice.WriteBlock(lba + j, 1, ref sec);
+                    uint cl = upcaseFirstCluster + i;
+                    ulong lba = clusterHeapOffset + (ulong)(cl - 2) * sectorsPerCluster;
+                    int toCopy = Math.Min(remaining, (int)bytesPerCluster);
+                    // zero a full cluster buffer, then copy data
+                    byte[] clBuf = new byte[bytesPerCluster];
+                    if (toCopy > 0)
+                    {
+                        Buffer.BlockCopy(upBuf, srcOff, clBuf, 0, toCopy);
+                    }
+                    for (uint j = 0; j < sectorsPerCluster; j++)
+                    {
+                        byte[] sec = new byte[bytesPerSector];
+                        Buffer.BlockCopy(clBuf, (int)(j * bytesPerSector), sec, 0, (int)bytesPerSector);
+                        aDevice.WriteBlock(lba + j, 1, ref sec);
+                    }
+                    srcOff += toCopy;
+                    remaining -= toCopy;
                 }
             }
 
@@ -309,9 +353,7 @@ namespace Cosmos.System.FileSystem.ExFAT
                 // Up-case entry at second slot
                 off = 32;
                 dir[off + 0] = 0x82;
-                // Compute and store Up-case checksum (over table data)
-                uint upChecksum = 0; // zeroed table => 0
-                // Write checksum at +4
+                // Write checksum at +4 (computed from upcase table bytes)
                 Array.Copy(BitConverter.GetBytes(upChecksum), 0, dir, off + 4, 4);
                 Array.Copy(BitConverter.GetBytes(upcaseFirstCluster), 0, dir, off + 20, 4);
                 Array.Copy(BitConverter.GetBytes(upcaseBytes), 0, dir, off + 24, 8);
@@ -612,6 +654,27 @@ namespace Cosmos.System.FileSystem.ExFAT
                 sum += buffer[i];
             }
             return sum;
+        }
+
+        // exFAT boot region checksum over first 11 sectors, with VolumeFlags and PercentInUse treated as zero
+        internal static uint ComputeBootRegionChecksum(byte[] bootFirst11Sectors, int bytesPerSector)
+        {
+            // Copy and zero mutable fields: sector 0 offsets 0x6A,0x6B (VolumeFlags) and 0x70 (PercentInUse)
+            byte[] tmp = new byte[bootFirst11Sectors.Length];
+            Buffer.BlockCopy(bootFirst11Sectors, 0, tmp, 0, bootFirst11Sectors.Length);
+            if (tmp.Length >= bytesPerSector)
+            {
+                if (bytesPerSector > 0x6B)
+                {
+                    tmp[0x6A] = 0;
+                    tmp[0x6B] = 0;
+                }
+                if (bytesPerSector > 0x70)
+                {
+                    tmp[0x70] = 0;
+                }
+            }
+            return ComputeChecksum32(tmp, 0, bootFirst11Sectors.Length);
         }
 
         private uint GetFatEntry(uint cluster)
