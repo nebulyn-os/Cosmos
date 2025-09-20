@@ -9,10 +9,11 @@ namespace Cosmos.System.FileSystem.ExFAT
 {
     internal class ExFatFileSystem : FileSystem
     {
-        /// <summary>
-        /// Create a new exFAT filesystem on the given partition and return a mounted instance.
-        /// This writes a minimal, valid exFAT layout: VBR, FAT, Allocation Bitmap, Up-case table, and empty root directory.
-        /// </summary>
+    /// <summary>
+    /// Create a new exFAT filesystem on the given partition and return a mounted instance.
+    /// This writes a Windows-friendly exFAT layout: Boot region (12 sectors) + backup at end, FAT,
+    /// Allocation Bitmap, Up-case table (with checksum), and root directory including bitmap, up-case, and volume label entries.
+    /// </summary>
         public static ExFatFileSystem CreateExFatFileSystem(Partition aDevice, string aRootPath, long aSize)
         {
             if (aDevice == null)
@@ -58,9 +59,9 @@ namespace Cosmos.System.FileSystem.ExFAT
             uint sectorsPerCluster = (uint)(1u << sectorsPerClusterShift);
             uint bytesPerCluster = bytesPerSector * sectorsPerCluster;
 
-            // exFAT layout: [VBR=1] [FAT] [ClusterHeap]
+            // exFAT layout: [BootRegion=12] [FAT] [ClusterHeap] [...BackupBootRegion=12 at end]
             uint numberOfFats = 1;
-            uint fatOffset = 1; // start after VBR
+            uint fatOffset = 12; // start after boot region (12 sectors)
             uint fatLength = 0; // to compute
             uint clusterHeapOffset = 0; // to compute
             uint clusterCount = 0; // to compute
@@ -69,7 +70,9 @@ namespace Cosmos.System.FileSystem.ExFAT
             for (int i = 0; i < 4; i++)
             {
                 clusterHeapOffset = fatOffset + fatLength;
-                ulong clusterHeapSectors = totalSectors > clusterHeapOffset ? totalSectors - clusterHeapOffset : 0;
+                // Reserve the last 12 sectors for the backup boot region
+                ulong usableSectorsEnd = totalSectors > 12 ? totalSectors - 12 : 0;
+                ulong clusterHeapSectors = usableSectorsEnd > clusterHeapOffset ? usableSectorsEnd - clusterHeapOffset : 0;
                 uint newClusterCount = (uint)(clusterHeapSectors / sectorsPerCluster);
                 if (newClusterCount < 8)
                 {
@@ -107,41 +110,92 @@ namespace Cosmos.System.FileSystem.ExFAT
             // Percent in use (rough approximation)
             byte percentInUse = clusterCount == 0 ? (byte)0 : (byte)Math.Min(100, (int)((nextCluster - 2) * 100 / clusterCount));
 
-            // Build and write VBR (sector 0)
-            byte[] vbr = aDevice.NewBlockArray(1);
-            for (int i = 0; i < vbr.Length; i++)
+            // Build boot region (11 sectors: VBR + 8 extended + 2 reserved) and checksum sector (12th)
+            byte[] bootAll = new byte[bytesPerSector * 11];
+            // VBR at sector 0
             {
-                vbr[i] = 0;
+                byte[] vbr = new byte[bytesPerSector];
+                for (int i = 0; i < vbr.Length; i++)
+                {
+                    vbr[i] = 0;
+                }
+                vbr[0] = 0xEB; vbr[1] = 0x76; vbr[2] = 0x90; // JMP short, NOP
+                Encoding.ASCII.GetBytes("EXFAT   ").CopyTo(vbr, 3);
+                // PartitionOffset (0) @0x40
+                // VolumeLength (sectors) @0x48 (8 bytes)
+                BitConverter.GetBytes(totalSectors).CopyTo(vbr, 0x48);
+                // FATOffset @0x50, FATLength @0x54
+                BitConverter.GetBytes(fatOffset).CopyTo(vbr, 0x50);
+                BitConverter.GetBytes(fatLength).CopyTo(vbr, 0x54);
+                // ClusterHeapOffset @0x58, ClusterCount @0x5C
+                BitConverter.GetBytes(clusterHeapOffset).CopyTo(vbr, 0x58);
+                BitConverter.GetBytes(clusterCount).CopyTo(vbr, 0x5C);
+                // RootDirCluster @0x60
+                BitConverter.GetBytes(rootDirCluster).CopyTo(vbr, 0x60);
+                // VolumeSerialNumber @0x64
+                BitConverter.GetBytes((uint)(DateTime.UtcNow.Ticks & 0xFFFFFFFF)).CopyTo(vbr, 0x64);
+                // FileSystemRevision @0x68 (1.0)
+                BitConverter.GetBytes((ushort)0x0100).CopyTo(vbr, 0x68);
+                // VolumeFlags @0x6A
+                BitConverter.GetBytes((ushort)0).CopyTo(vbr, 0x6A);
+                // BytesPerSectorShift @0x6C, SectorsPerClusterShift @0x6D, NumberOfFats @0x6E, DriveSelect @0x6F
+                vbr[0x6C] = bytesPerSectorShift;
+                vbr[0x6D] = sectorsPerClusterShift;
+                vbr[0x6E] = (byte)numberOfFats;
+                vbr[0x6F] = 0x80; // fixed disk
+                // PercentInUse @0x70
+                vbr[0x70] = percentInUse;
+                // Signature 0xAA55
+                vbr[510] = 0x55; vbr[511] = 0xAA;
+                Buffer.BlockCopy(vbr, 0, bootAll, 0, (int)bytesPerSector);
             }
-            vbr[0] = 0xEB; vbr[1] = 0x76; vbr[2] = 0x90; // JMP short, NOP
-            Encoding.ASCII.GetBytes("EXFAT   ").CopyTo(vbr, 3);
-            // PartitionOffset (0) @0x40
-            // VolumeLength (sectors) @0x48 (8 bytes)
-            BitConverter.GetBytes(totalSectors).CopyTo(vbr, 0x48);
-            // FATOffset @0x50, FATLength @0x54
-            BitConverter.GetBytes(fatOffset).CopyTo(vbr, 0x50);
-            BitConverter.GetBytes(fatLength).CopyTo(vbr, 0x54);
-            // ClusterHeapOffset @0x58, ClusterCount @0x5C
-            BitConverter.GetBytes(clusterHeapOffset).CopyTo(vbr, 0x58);
-            BitConverter.GetBytes(clusterCount).CopyTo(vbr, 0x5C);
-            // RootDirCluster @0x60
-            BitConverter.GetBytes(rootDirCluster).CopyTo(vbr, 0x60);
-            // VolumeSerialNumber @0x64
-            BitConverter.GetBytes((uint)(DateTime.UtcNow.Ticks & 0xFFFFFFFF)).CopyTo(vbr, 0x64);
-            // FileSystemRevision @0x68 (1.0)
-            BitConverter.GetBytes((ushort)0x0100).CopyTo(vbr, 0x68);
-            // VolumeFlags @0x6A
-            BitConverter.GetBytes((ushort)0).CopyTo(vbr, 0x6A);
-            // BytesPerSectorShift @0x6C, SectorsPerClusterShift @0x6D, NumberOfFats @0x6E, DriveSelect @0x6F
-            vbr[0x6C] = bytesPerSectorShift;
-            vbr[0x6D] = sectorsPerClusterShift;
-            vbr[0x6E] = (byte)numberOfFats;
-            vbr[0x6F] = 0x80; // fixed disk
-            // PercentInUse @0x70
-            vbr[0x70] = percentInUse;
-            // Signature 0xAA55
-            vbr[510] = 0x55; vbr[511] = 0xAA;
-            aDevice.WriteBlock(0, 1, ref vbr);
+            // Extended boot sectors (1..10) - zeroed with signature
+            for (int s = 1; s < 11; s++)
+            {
+                int off = s * (int)bytesPerSector;
+                // filled with zeros by default
+                bootAll[off + 510] = 0x55; bootAll[off + 511] = 0xAA;
+            }
+            // Compute boot checksum (32-bit rotate-right add over the 11 sectors)
+            uint bootCk = ComputeChecksum32(bootAll, 0, bootAll.Length);
+            // Write main boot region (first 11 sectors)
+            for (uint i = 0; i < 11; i++)
+            {
+                byte[] sec = new byte[bytesPerSector];
+                Buffer.BlockCopy(bootAll, (int)(i * bytesPerSector), sec, 0, (int)bytesPerSector);
+                aDevice.WriteBlock(i, 1, ref sec);
+            }
+            // Write checksum sector (12th)
+            {
+                byte[] ck = new byte[bytesPerSector];
+                for (int i = 0; i < ck.Length; i += 4)
+                {
+                    ck[i + 0] = (byte)(bootCk & 0xFF);
+                    ck[i + 1] = (byte)((bootCk >> 8) & 0xFF);
+                    ck[i + 2] = (byte)((bootCk >> 16) & 0xFF);
+                    ck[i + 3] = (byte)((bootCk >> 24) & 0xFF);
+                }
+                aDevice.WriteBlock(11, 1, ref ck);
+            }
+            // Write backup boot region at end (last 12 sectors)
+            {
+                ulong backupStart = totalSectors >= 12 ? totalSectors - 12 : 0;
+                for (uint i = 0; i < 11; i++)
+                {
+                    byte[] sec = new byte[bytesPerSector];
+                    Buffer.BlockCopy(bootAll, (int)(i * bytesPerSector), sec, 0, (int)bytesPerSector);
+                    aDevice.WriteBlock(backupStart + i, 1, ref sec);
+                }
+                byte[] ck = new byte[bytesPerSector];
+                for (int i = 0; i < ck.Length; i += 4)
+                {
+                    ck[i + 0] = (byte)(bootCk & 0xFF);
+                    ck[i + 1] = (byte)((bootCk >> 8) & 0xFF);
+                    ck[i + 2] = (byte)((bootCk >> 16) & 0xFF);
+                    ck[i + 3] = (byte)((bootCk >> 24) & 0xFF);
+                }
+                aDevice.WriteBlock(backupStart + 11, 1, ref ck);
+            }
 
             // Write FAT
             uint fatEntriesCount = clusterCount + 2;
@@ -238,7 +292,7 @@ namespace Cosmos.System.FileSystem.ExFAT
                 }
             }
 
-            // Write Root Directory with 0x81 Allocation Bitmap and 0x82 Up-case entries
+            // Write Root Directory with 0x81 Allocation Bitmap, 0x82 Up-case, and 0x83 Volume Label entries
             {
                 byte[] dir = new byte[bytesPerCluster];
                 for (int i = 0; i < dir.Length; i++)
@@ -255,9 +309,24 @@ namespace Cosmos.System.FileSystem.ExFAT
                 // Up-case entry at second slot
                 off = 32;
                 dir[off + 0] = 0x82;
-                // off+1..19 reserved (checksum omitted)
+                // Compute and store Up-case checksum (over table data)
+                uint upChecksum = 0; // zeroed table => 0
+                // Write checksum at +4
+                Array.Copy(BitConverter.GetBytes(upChecksum), 0, dir, off + 4, 4);
                 Array.Copy(BitConverter.GetBytes(upcaseFirstCluster), 0, dir, off + 20, 4);
                 Array.Copy(BitConverter.GetBytes(upcaseBytes), 0, dir, off + 24, 8);
+                // Volume Label entry at third slot (use default label)
+                string label = "COSMOS";
+                off = 64;
+                dir[off + 0] = 0x83;
+                int labelChars = Math.Min(11, label.Length);
+                dir[off + 1] = (byte)labelChars; // character count
+                for (int i = 0; i < labelChars; i++)
+                {
+                    ushort ch = label[i];
+                    var chb = BitConverter.GetBytes(ch);
+                    Buffer.BlockCopy(chb, 0, dir, off + 2 + (i * 2), 2);
+                }
 
                 uint cl = rootDirCluster;
                 ulong lba = clusterHeapOffset + (ulong)(cl - 2) * sectorsPerCluster;
@@ -283,7 +352,7 @@ namespace Cosmos.System.FileSystem.ExFAT
         private readonly uint ClusterHeapOffset;
         private readonly uint ClusterCount;
         private readonly uint RootDirCluster;
-        private readonly string _label;
+    private string _label;
     internal uint BytesPerCluster { get; }
 
         // Allocation Bitmap and Up-case Table metadata
@@ -335,7 +404,7 @@ namespace Cosmos.System.FileSystem.ExFAT
             _label = "exFAT";
             BytesPerCluster = (uint)BytesPerSector * SectorsPerCluster;
 
-            // Discover Allocation Bitmap(s) and Up-case Table in the root directory
+            // Discover Allocation Bitmap(s), Up-case Table, and Volume Label in the root directory
             try
             {
                 ScanVolumeMetadata();
@@ -484,7 +553,20 @@ namespace Cosmos.System.FileSystem.ExFAT
         public override string Label
         {
             get => _label;
-            set => throw new NotImplementedException("Setting exFAT label not supported");
+            set
+            {
+                if (value == null)
+                {
+                    value = string.Empty;
+                }
+                string sanitized = SanitizeVolumeLabel(value);
+                if (sanitized == _label)
+                {
+                    return;
+                }
+                WriteOrUpdateVolumeLabel(sanitized);
+                _label = sanitized;
+            }
         }
 
         public override void Format(string aDriveFormat, bool aQuick)
@@ -517,6 +599,19 @@ namespace Cosmos.System.FileSystem.ExFAT
                 buf[i] = 0;
             }
             WriteCluster(cluster, buf);
+        }
+
+        // exFAT 32-bit checksum used by boot region and up-case table
+        internal static uint ComputeChecksum32(byte[] buffer, int offset, int length)
+        {
+            uint sum = 0;
+            int end = offset + length;
+            for (int i = offset; i < end; i++)
+            {
+                sum = (sum >> 1) | (sum << 31);
+                sum += buffer[i];
+            }
+            return sum;
         }
 
         private uint GetFatEntry(uint cluster)
@@ -811,6 +906,108 @@ namespace Cosmos.System.FileSystem.ExFAT
             return sb.ToString();
         }
 
+        private static string SanitizeVolumeLabel(string label)
+        {
+            if (label == null)
+            {
+                return string.Empty;
+            }
+            // exFAT allows up to 11 UTF-16 chars; avoid control chars
+            StringBuilder sb = new StringBuilder(Math.Min(11, label.Length));
+            for (int i = 0; i < label.Length && sb.Length < 11; i++)
+            {
+                char ch = label[i];
+                if (ch < 0x20)
+                {
+                    continue;
+                }
+                sb.Append(ch);
+            }
+            return sb.ToString();
+        }
+
+        private void WriteOrUpdateVolumeLabel(string newLabel)
+        {
+            var chain = GetClusterChain(RootDirCluster);
+            if (chain.Count == 0)
+            {
+                chain.Add(RootDirCluster);
+            }
+            int entrySize = 32;
+            for (int ci = 0; ci < chain.Count; ci++)
+            {
+                var data = ReadCluster(chain[ci]);
+                int entries = data.Length / entrySize;
+                for (int e = 0; e < entries; e++)
+                {
+                    int off = e * entrySize;
+                    byte type = data[off + 0];
+                    if ((type & 0x80) != 0 && type == 0x83)
+                    {
+                        // Update existing label
+                        int count = Math.Min(11, newLabel.Length);
+                        data[off + 1] = (byte)count;
+                        // Clear name area first
+                        for (int i = 0; i < 11; i++)
+                        {
+                            data[off + 2 + i * 2] = 0;
+                            data[off + 3 + i * 2] = 0;
+                        }
+                        for (int i = 0; i < count; i++)
+                        {
+                            ushort ch = newLabel[i];
+                            var chb = BitConverter.GetBytes(ch);
+                            Buffer.BlockCopy(chb, 0, data, off + 2 + (i * 2), 2);
+                        }
+                        WriteCluster(chain[ci], data);
+                        return;
+                    }
+                }
+            }
+            // Not found: add a new label entry at beginning of root directory cluster
+            // We append at the first free slot in the root directory
+            var rootData = ReadCluster(RootDirCluster);
+            int total = rootData.Length / entrySize;
+            for (int e = 0; e < total; e++)
+            {
+                int off = e * entrySize;
+                byte type = rootData[off + 0];
+                if (type == 0x00 || (type & 0x80) == 0)
+                {
+                    // Free slot
+                    rootData[off + 0] = 0x83;
+                    int count = Math.Min(11, newLabel.Length);
+                    rootData[off + 1] = (byte)count;
+                    for (int i = 0; i < count; i++)
+                    {
+                        ushort ch = newLabel[i];
+                        var chb = BitConverter.GetBytes(ch);
+                        Buffer.BlockCopy(chb, 0, rootData, off + 2 + (i * 2), 2);
+                    }
+                    WriteCluster(RootDirCluster, rootData);
+                    return;
+                }
+            }
+            // If no free slot in first cluster, extend directory by one cluster and place entry at start
+            var added = AllocateClusterChain(1);
+            LinkClusterToDirectory(RootDirCluster, added[0]);
+            var newCl = ReadCluster(added[0]);
+            for (int i = 0; i < newCl.Length; i++)
+            {
+                newCl[i] = 0;
+            }
+            newCl[0] = 0x83;
+            int cnt = Math.Min(11, newLabel.Length);
+            newCl[1] = (byte)cnt;
+            for (int i = 0; i < cnt; i++)
+            {
+                ushort ch = newLabel[i];
+                var chb = BitConverter.GetBytes(ch);
+                Buffer.BlockCopy(chb, 0, newCl, 2 + (i * 2), 2);
+            }
+            WriteCluster(added[0], newCl);
+        }
+
         private bool EnsureFreeDirEntries(uint dirCluster, uint needed, out uint targetCluster, out int startIndex)
         {
             var chain = GetClusterChain(dirCluster);
@@ -977,7 +1174,7 @@ namespace Cosmos.System.FileSystem.ExFAT
             WriteCluster(dirCluster, buf);
         }
 
-        // Scan root directory for Allocation Bitmap (0x81) and Up-case Table (0x82)
+        // Scan root directory for Allocation Bitmap (0x81), Up-case Table (0x82), and Volume Label (0x83)
         private void ScanVolumeMetadata()
         {
             List<uint> chain = GetClusterChain(RootDirCluster);
@@ -986,6 +1183,7 @@ namespace Cosmos.System.FileSystem.ExFAT
                 chain.Add(RootDirCluster);
             }
             int entrySize = 32;
+            string foundLabel = null;
             for (int ci = 0; ci < chain.Count; ci++)
             {
                 var data = ReadCluster(chain[ci]);
@@ -1021,7 +1219,30 @@ namespace Cosmos.System.FileSystem.ExFAT
                         _upcaseFirstCluster = BitConverter.ToUInt32(data, off + 20);
                         _upcaseLength = BitConverter.ToUInt64(data, off + 24);
                     }
+                    else if (type == 0x83)
+                    {
+                        int count = data[off + 1];
+                        if (count > 11)
+                        {
+                            count = 11;
+                        }
+                        StringBuilder sb = new StringBuilder(count);
+                        for (int i = 0; i < count; i++)
+                        {
+                            ushort ch = BitConverter.ToUInt16(data, off + 2 + i * 2);
+                            if (ch == 0)
+                            {
+                                break;
+                            }
+                            sb.Append((char)ch);
+                        }
+                        foundLabel = sb.ToString();
+                    }
                 }
+            }
+            if (!string.IsNullOrEmpty(foundLabel))
+            {
+                _label = foundLabel;
             }
         }
 
