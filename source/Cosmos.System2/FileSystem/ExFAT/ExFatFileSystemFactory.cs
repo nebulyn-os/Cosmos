@@ -15,25 +15,20 @@ namespace Cosmos.System.FileSystem.ExFAT
                 throw new ArgumentNullException(nameof(aDevice));
             }
             // Prefer partition metadata first when possible (MBR). exFAT typically uses MBR type 0x07 (Microsoft Basic/NTFS/exFAT)
-            // but this is not unique. We use it as a gate to exclude clearly non-Microsoft partitions.
+            // but this is not unique. Use it only as a soft hint—always verify content below.
             if (!GPT.IsGPTPartition(aDevice.Host))
             {
                 MBR mbr = new MBR(aDevice.Host);
-                bool found = false;
                 for (int i = 0; i < mbr.Partitions.Count; i++)
                 {
                     MBR.PartInfo pi = mbr.Partitions[i];
                     if (pi.StartSector == aDevice.StartingSector && pi.SectorCount == aDevice.BlockCount)
                     {
-                        found = true;
-                        if (pi.SystemID != 0x07)
-                        {
-                            return false; // not a Microsoft/exFAT/NTFS type
-                        }
+                        // Matched partition entry; we don't early-return based on SystemID—content checks below decide.
                         break;
                     }
                 }
-                // If not found in MBR, we still proceed to content-based checks.
+                // If not found in MBR, proceed to content-based checks.
             }
 
             byte[] boot = aDevice.NewBlockArray(1);

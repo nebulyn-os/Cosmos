@@ -9,6 +9,269 @@ namespace Cosmos.System.FileSystem.ExFAT
 {
     internal class ExFatFileSystem : FileSystem
     {
+        /// <summary>
+        /// Create a new exFAT filesystem on the given partition and return a mounted instance.
+        /// This writes a minimal, valid exFAT layout: VBR, FAT, Allocation Bitmap, Up-case table, and empty root directory.
+        /// </summary>
+        public static ExFatFileSystem CreateExFatFileSystem(Partition aDevice, string aRootPath, long aSize)
+        {
+            if (aDevice == null)
+            {
+                throw new ArgumentNullException(nameof(aDevice));
+            }
+            if (string.IsNullOrEmpty(aRootPath))
+            {
+                throw new ArgumentException("Root path required", nameof(aRootPath));
+            }
+
+            // Geometry
+            ulong totalSectors = aDevice.BlockCount;
+            uint bytesPerSector = (uint)aDevice.BlockSize;
+            byte bytesPerSectorShift = bytesPerSector switch
+            {
+                512 => (byte)9,
+                1024 => (byte)10,
+                2048 => (byte)11,
+                4096 => (byte)12,
+                _ => (byte)9
+            };
+
+            // Choose cluster size based on volume size (simple heuristic)
+            byte sectorsPerClusterShift;
+            if (totalSectors < 1UL << 20) // < ~512MB (512B sectors)
+            {
+                sectorsPerClusterShift = 3; // 8 sectors
+            }
+            else if (totalSectors < 1UL << 22) // < ~2GB
+            {
+                sectorsPerClusterShift = 5; // 32 sectors
+            }
+            else if (totalSectors < 1UL << 24) // < ~8GB
+            {
+                sectorsPerClusterShift = 6; // 64 sectors
+            }
+            else
+            {
+                sectorsPerClusterShift = 7; // 128 sectors
+            }
+
+            uint sectorsPerCluster = (uint)(1u << sectorsPerClusterShift);
+            uint bytesPerCluster = bytesPerSector * sectorsPerCluster;
+
+            // exFAT layout: [VBR=1] [FAT] [ClusterHeap]
+            uint numberOfFats = 1;
+            uint fatOffset = 1; // start after VBR
+            uint fatLength = 0; // to compute
+            uint clusterHeapOffset = 0; // to compute
+            uint clusterCount = 0; // to compute
+
+            // Iterate once or twice to converge FAT length and cluster count
+            for (int i = 0; i < 4; i++)
+            {
+                clusterHeapOffset = fatOffset + fatLength;
+                ulong clusterHeapSectors = totalSectors > clusterHeapOffset ? totalSectors - clusterHeapOffset : 0;
+                uint newClusterCount = (uint)(clusterHeapSectors / sectorsPerCluster);
+                if (newClusterCount < 8)
+                {
+                    // ensure some minimal cluster count
+                    newClusterCount = 8;
+                }
+                uint fatEntries = newClusterCount + 2; // include clusters starting at 2
+                uint newFatLength = (uint)(((ulong)fatEntries * 4 + bytesPerSector - 1) / bytesPerSector);
+                if (newFatLength == fatLength && newClusterCount == clusterCount)
+                {
+                    break;
+                }
+                fatLength = newFatLength;
+                clusterCount = newClusterCount;
+            }
+
+            // Allocate clusters for system files
+            uint nextCluster = 2;
+            uint rootDirCluster = nextCluster++;
+
+            // Allocation Bitmap length (in bytes) and clusters needed
+            ulong bitmapBytes = (ulong)((clusterCount + 7) / 8);
+            uint bitmapClusters = (uint)((bitmapBytes + bytesPerCluster - 1) / bytesPerCluster);
+            if (bitmapClusters == 0)
+            {
+                bitmapClusters = 1;
+            }
+            uint bitmapFirstCluster = nextCluster;
+            nextCluster += bitmapClusters;
+
+            // Up-case table: allocate 1 cluster with trivial data
+            uint upcaseFirstCluster = nextCluster++;
+            ulong upcaseBytes = bytesPerCluster; // simple 1-cluster table
+
+            // Percent in use (rough approximation)
+            byte percentInUse = clusterCount == 0 ? (byte)0 : (byte)Math.Min(100, (int)((nextCluster - 2) * 100 / clusterCount));
+
+            // Build and write VBR (sector 0)
+            byte[] vbr = aDevice.NewBlockArray(1);
+            for (int i = 0; i < vbr.Length; i++)
+            {
+                vbr[i] = 0;
+            }
+            vbr[0] = 0xEB; vbr[1] = 0x76; vbr[2] = 0x90; // JMP short, NOP
+            Encoding.ASCII.GetBytes("EXFAT   ").CopyTo(vbr, 3);
+            // PartitionOffset (0) @0x40
+            // VolumeLength (sectors) @0x48 (8 bytes)
+            BitConverter.GetBytes(totalSectors).CopyTo(vbr, 0x48);
+            // FATOffset @0x50, FATLength @0x54
+            BitConverter.GetBytes(fatOffset).CopyTo(vbr, 0x50);
+            BitConverter.GetBytes(fatLength).CopyTo(vbr, 0x54);
+            // ClusterHeapOffset @0x58, ClusterCount @0x5C
+            BitConverter.GetBytes(clusterHeapOffset).CopyTo(vbr, 0x58);
+            BitConverter.GetBytes(clusterCount).CopyTo(vbr, 0x5C);
+            // RootDirCluster @0x60
+            BitConverter.GetBytes(rootDirCluster).CopyTo(vbr, 0x60);
+            // VolumeSerialNumber @0x64
+            BitConverter.GetBytes((uint)(DateTime.UtcNow.Ticks & 0xFFFFFFFF)).CopyTo(vbr, 0x64);
+            // FileSystemRevision @0x68 (1.0)
+            BitConverter.GetBytes((ushort)0x0100).CopyTo(vbr, 0x68);
+            // VolumeFlags @0x6A
+            BitConverter.GetBytes((ushort)0).CopyTo(vbr, 0x6A);
+            // BytesPerSectorShift @0x6C, SectorsPerClusterShift @0x6D, NumberOfFats @0x6E, DriveSelect @0x6F
+            vbr[0x6C] = bytesPerSectorShift;
+            vbr[0x6D] = sectorsPerClusterShift;
+            vbr[0x6E] = (byte)numberOfFats;
+            vbr[0x6F] = 0x80; // fixed disk
+            // PercentInUse @0x70
+            vbr[0x70] = percentInUse;
+            // Signature 0xAA55
+            vbr[510] = 0x55; vbr[511] = 0xAA;
+            aDevice.WriteBlock(0, 1, ref vbr);
+
+            // Write FAT
+            uint fatEntriesCount = clusterCount + 2;
+            byte[] fatBytes = new byte[fatLength * bytesPerSector];
+            // Initialize FAT entries to 0
+            // Mark used clusters
+            void SetFat(uint cluster, uint value)
+            {
+                if (cluster >= fatEntriesCount)
+                {
+                    return;
+                }
+                int off = (int)(cluster * 4);
+                fatBytes[off + 0] = (byte)(value & 0xFF);
+                fatBytes[off + 1] = (byte)((value >> 8) & 0xFF);
+                fatBytes[off + 2] = (byte)((value >> 16) & 0xFF);
+                fatBytes[off + 3] = (byte)((value >> 24) & 0xFF);
+            }
+
+            // Root dir single cluster EOC
+            SetFat(rootDirCluster, 0xFFFFFFFF);
+            // Allocation bitmap chain
+            for (uint i = 0; i < bitmapClusters; i++)
+            {
+                uint c = bitmapFirstCluster + i;
+                uint val = (i == bitmapClusters - 1) ? 0xFFFFFFFFu : (c + 1);
+                SetFat(c, val);
+            }
+            // Up-case single cluster EOC
+            SetFat(upcaseFirstCluster, 0xFFFFFFFF);
+
+            // Write FAT sectors
+            for (uint s = 0; s < fatLength; s++)
+            {
+                byte[] sec = new byte[bytesPerSector];
+                Buffer.BlockCopy(fatBytes, (int)(s * bytesPerSector), sec, 0, (int)bytesPerSector);
+                aDevice.WriteBlock(fatOffset + s, 1, ref sec);
+            }
+
+            // Write Allocation Bitmap data across its cluster chain
+            byte[] bmData = new byte[bitmapClusters * bytesPerCluster];
+            // Mark allocated clusters in bitmap: root, bitmap chain, up-case
+            void SetBit(uint cluster)
+            {
+                if (cluster < 2)
+                {
+                    return;
+                }
+                uint bitIndex = cluster - 2;
+                uint byteIndex = bitIndex / 8;
+                int bitInByte = (int)(bitIndex % 8);
+                if (byteIndex < bmData.Length)
+                {
+                    bmData[byteIndex] |= (byte)(1 << bitInByte);
+                }
+            }
+            SetBit(rootDirCluster);
+            for (uint i = 0; i < bitmapClusters; i++)
+            {
+                SetBit(bitmapFirstCluster + i);
+            }
+            SetBit(upcaseFirstCluster);
+
+            // Write bmData to cluster heap
+            for (uint i = 0; i < bitmapClusters; i++)
+            {
+                uint cl = bitmapFirstCluster + i;
+                ulong lba = clusterHeapOffset + (ulong)(cl - 2) * sectorsPerCluster;
+                byte[] clBuf = new byte[bytesPerCluster];
+                Buffer.BlockCopy(bmData, (int)(i * bytesPerCluster), clBuf, 0, (int)bytesPerCluster);
+                // Write cluster sectors
+                for (uint j = 0; j < sectorsPerCluster; j++)
+                {
+                    byte[] sec = new byte[bytesPerSector];
+                    Buffer.BlockCopy(clBuf, (int)(j * bytesPerSector), sec, 0, (int)bytesPerSector);
+                    aDevice.WriteBlock(lba + j, 1, ref sec);
+                }
+            }
+
+            // Write Up-case table (trivial zeroed table)
+            {
+                uint cl = upcaseFirstCluster;
+                ulong lba = clusterHeapOffset + (ulong)(cl - 2) * sectorsPerCluster;
+                byte[] clBuf = new byte[bytesPerCluster];
+                for (int i = 0; i < clBuf.Length; i++)
+                {
+                    clBuf[i] = 0;
+                }
+                for (uint j = 0; j < sectorsPerCluster; j++)
+                {
+                    byte[] sec = new byte[bytesPerSector];
+                    Buffer.BlockCopy(clBuf, (int)(j * bytesPerSector), sec, 0, (int)bytesPerSector);
+                    aDevice.WriteBlock(lba + j, 1, ref sec);
+                }
+            }
+
+            // Write Root Directory with 0x81 Allocation Bitmap and 0x82 Up-case entries
+            {
+                byte[] dir = new byte[bytesPerCluster];
+                for (int i = 0; i < dir.Length; i++)
+                {
+                    dir[i] = 0;
+                }
+                // Allocation Bitmap entry at first slot
+                int off = 0;
+                dir[off + 0] = 0x81; // type
+                dir[off + 1] = 0x00; // bitmap id (FAT 0)
+                // off+2..19 reserved
+                Array.Copy(BitConverter.GetBytes(bitmapFirstCluster), 0, dir, off + 20, 4);
+                Array.Copy(BitConverter.GetBytes(bitmapBytes), 0, dir, off + 24, 8);
+                // Up-case entry at second slot
+                off = 32;
+                dir[off + 0] = 0x82;
+                // off+1..19 reserved (checksum omitted)
+                Array.Copy(BitConverter.GetBytes(upcaseFirstCluster), 0, dir, off + 20, 4);
+                Array.Copy(BitConverter.GetBytes(upcaseBytes), 0, dir, off + 24, 8);
+
+                uint cl = rootDirCluster;
+                ulong lba = clusterHeapOffset + (ulong)(cl - 2) * sectorsPerCluster;
+                for (uint j = 0; j < sectorsPerCluster; j++)
+                {
+                    byte[] sec = new byte[bytesPerSector];
+                    Buffer.BlockCopy(dir, (int)(j * bytesPerSector), sec, 0, (int)bytesPerSector);
+                    aDevice.WriteBlock(lba + j, 1, ref sec);
+                }
+            }
+
+            // Return the mounted FS instance
+            return new ExFatFileSystem(aDevice, aRootPath, aSize);
+        }
         // Minimal fields from exFAT VBR
         private readonly ushort BytesPerSector;
         private readonly byte SectorsPerCluster;

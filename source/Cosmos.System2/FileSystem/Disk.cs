@@ -128,10 +128,22 @@ namespace Cosmos.System.FileSystem
                     global::System.Console.WriteLine("Block Size: " + Partitions[i].Host.BlockSize + " bytes");
                     Global.Debugger.SendInternal("Block Count:");
                     Global.Debugger.SendInternal(Partitions[i].Host.BlockCount);
-                    global::System.Console.WriteLine("Block Partitions: " + Partitions[i].Host.BlockCount);
+                    global::System.Console.WriteLine("Block Count: " + Partitions[i].Host.BlockCount);
                     Global.Debugger.SendInternal("Size:");
                     Global.Debugger.SendInternal(Partitions[i].Host.BlockCount * Partitions[i].Host.BlockSize / 1024 / 1024);
-                    global::System.Console.WriteLine("Size: " + Partitions[i].Host.BlockCount * Partitions[i].Host.BlockSize / 1024 / 1024 + " MB");
+                    var rawSizeMB = (long)(Partitions[i].Host.BlockCount * Partitions[i].Host.BlockSize / 1024 / 1024);
+                    global::System.Console.WriteLine("Size: " + rawSizeMB + " MB");
+
+                    // If mounted, also show the filesystem-reported size for comparison
+                    if (mountedPartitions[i] != null)
+                    {
+                        var fsSizeMB = mountedPartitions[i].Size; // already in MB
+                        global::System.Console.WriteLine("Mounted FS Size: " + fsSizeMB + " MB");
+                        if (fsSizeMB != rawSizeMB)
+                        {
+                            global::System.Console.WriteLine("Note: FS size differs from raw partition size by " + (fsSizeMB - rawSizeMB) + " MB");
+                        }
+                    }
                 }
             }
             else
@@ -267,15 +279,64 @@ namespace Cosmos.System.FileSystem
             // Use the selected partition's size, not the whole disk size
             var xSize = (long)(part.Host.BlockCount * part.Host.BlockSize / 1024 / 1024);
 
-            if (format.StartsWith("FAT"))
+            if (format.StartsWith("FAT", StringComparison.OrdinalIgnoreCase))
             {
                 FatFileSystem.CreateFatFileSystem(part.Host, VFSManager.GetNextFilesystemLetter() + ":\\", xSize, format);
+                // Force remount of this partition so detection runs again
+                if (index >= 0 && index < mountedPartitions.Length)
+                {
+                    mountedPartitions[index] = null;
+                }
                 Mount();
+            }
+            else if (string.Equals(format, "exFAT", StringComparison.OrdinalIgnoreCase))
+            {
+                // Create and mount exFAT
+                var root = VFSManager.GetNextFilesystemLetter() + ":\\";
+                global::System.Console.WriteLine($"Formatting Partition #" + (index + 1) + " as exFAT (" + xSize + " MB)...");
+                var fs = ExFAT.ExFatFileSystem.CreateExFatFileSystem(part.Host, root, xSize);
+                // If MBR, ensure partition type is Microsoft Basic (0x07) for exFAT
+                if (!GPT.IsGPTPartition(Host))
+                {
+                    try
+                    {
+                        SetMbrPartitionType(index, 0x07);
+                    }
+                    catch { }
+                }
+                // Force remount of this partition so detection runs again
+                if (index >= 0 && index < mountedPartitions.Length)
+                {
+                    mountedPartitions[index] = null;
+                }
+                global::System.Console.WriteLine("Format complete. Mounting partition...");
+                MountPartition(index);
+                if (mountedPartitions[index] != null)
+                {
+                    global::System.Console.WriteLine("Mounted exFAT at " + mountedPartitions[index].RootPath + " (" + mountedPartitions[index].Size + " MB)");
+                }
+                else
+                {
+                    global::System.Console.WriteLine("Mount failed: file system not detected on partition #" + (index + 1));
+                }
             }
             else
             {
                 throw new NotImplementedException(format + " formatting not supported.");
             }
+        }
+
+        private void SetMbrPartitionType(int index, byte type)
+        {
+            if (GPT.IsGPTPartition(Host))
+            {
+                return;
+            }
+            byte[] mbr = Host.NewBlockArray(1);
+            Host.ReadBlock(0, 1, ref mbr);
+            int entry = 446 + (index * 16);
+            mbr[entry + 4] = type;
+            Host.WriteBlock(0, 1, ref mbr);
         }
 
         private readonly FileSystem[] mountedPartitions = new FileSystem[4];
