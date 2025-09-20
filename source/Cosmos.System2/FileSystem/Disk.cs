@@ -264,7 +264,8 @@ namespace Cosmos.System.FileSystem
         {
             var part = Partitions[index];
 
-            var xSize = (long)(Host.BlockCount * Host.BlockSize / 1024 / 1024);
+            // Use the selected partition's size, not the whole disk size
+            var xSize = (long)(part.Host.BlockCount * part.Host.BlockSize / 1024 / 1024);
 
             if (format.StartsWith("FAT"))
             {
@@ -293,7 +294,8 @@ namespace Cosmos.System.FileSystem
                 return;
             }
             string xRootPath = string.Concat(VFSManager.GetNextFilesystemLetter(), VFSBase.VolumeSeparatorChar, VFSBase.DirectorySeparatorChar);
-            var xSize = (long)(Host.BlockCount * Host.BlockSize / 1024 / 1024);
+            // Use the partition's size for filesystem creation/mount decisions
+            var xSize = (long)(part.Host.BlockCount * part.Host.BlockSize / 1024 / 1024);
 
             foreach (var item in FileSystemManager.RegisteredFileSystems)
             {
