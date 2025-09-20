@@ -8,6 +8,8 @@ namespace Cosmos.System.FileSystem.VFS
         public static List<FileSystemFactory> DefaultFileSystems {
             get {
                 return new List<FileSystemFactory>() {
+                    new NTFS.NtfsFileSystemFactory(),
+                    new ExFAT.ExFatFileSystemFactory(),
                     new FAT.FatFileSystemFactory(),
                     new ISO9660.ISO9660FileSystemFactory()
                 };

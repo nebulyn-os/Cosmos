@@ -141,88 +141,84 @@ namespace Cosmos.System.FileSystem
         }
 
         /// <summary>
-        /// Create Partition.
+        /// Create a primary MBR partition of the given size in MB.
+        /// Places it at the next available aligned LBA and writes entry into the first free slot.
         /// </summary>
-        /// <param name="size">Size in MB.</param>
-        /// <exception cref="ArgumentOutOfRangeException">Thrown if start / end is smaller then 0.</exception>
-        /// <exception cref="ArgumentException">Thrown if end is smaller or equal to start.</exception>
-        /// <exception cref="NotImplementedException">Thrown if partition type is GPT.</exception>
+        /// <param name="size">Size in MB (must be > 0).</param>
         public void CreatePartition(int size)
         {
-            if (size == 0 | size < 0)
+            if (size <= 0)
             {
-                throw new ArgumentException("size");
+                throw new ArgumentException("size must be > 0", nameof(size));
             }
             if (GPT.IsGPTPartition(Host))
             {
                 throw new Exception("Creating partitions with GPT style not yet supported!");
             }
 
-            ulong location;
-            ulong startingSector = 63;
-            ulong amountOfSectors = ((ulong)size * 1024 * 1024 / 512);
-
-            if (Partitions.Count == 0)
-            {
-                location = 446;
-                startingSector = 63;
-            }
-            else if (Partitions.Count == 1)
-            {
-                location = 462;
-                startingSector = (ulong)(Partitions[0].Host.BlockSize + Partitions[0].Host.BlockCount);
-            }
-            else if (Partitions.Count == 2)
-            {
-                location = 478;
-            }
-            else if (Partitions.Count == 3)
-            {
-                location = 494;
-            }
-            else
-            {
-                throw new NotImplementedException("Extended partitons not yet supported.");
-            }
-
-            //Create MBR
-            var mbrData = new byte[512];
+            // Read MBR sector
+            byte[] mbrData = Host.NewBlockArray(1);
             Host.ReadBlock(0, 1, ref mbrData);
-            mbrData[location + 0] = 0x80; //bootable
-            mbrData[location + 1] = 0x1; //starting head
-            mbrData[location + 2] = 0; //Starting sector
-            mbrData[location + 3] = 0x0; //Starting Cylinder
-            mbrData[location + 4] = 83;//normal partition
-            mbrData[location + 5] = 0xFE; //ending head
-            mbrData[location + 6] = 0x3F; //Ending Sector
-            mbrData[location + 7] = 0x40;//Ending Cylinder
 
-            //Starting Sector
-            byte[] startingSectorBytes = BitConverter.GetBytes(startingSector);
-            mbrData[location + 8] = startingSectorBytes[0];
-            mbrData[location + 9] = startingSectorBytes[1];
-            mbrData[location + 10] = startingSectorBytes[2];
-            mbrData[location + 11] = startingSectorBytes[3];
+            // Ensure MBR signature exists; if empty, initialize a fresh MBR
+            if (!(mbrData[510] == 0x55 && mbrData[511] == 0xAA))
+            {
+                new MBR(Host).CreateMBR(Host);
+                Host.ReadBlock(0, 1, ref mbrData);
+            }
 
-            //Total Sectors in partition
-            byte[] total = BitConverter.GetBytes(amountOfSectors);
-            mbrData[location + 12] = total[0];
-            mbrData[location + 13] = total[1];
-            mbrData[location + 14] = total[2];
-            mbrData[location + 15] = total[3];
+            // Find first free partition slot (0..3)
+            int freeSlot = -1;
+            for (int slot = 0; slot < 4; slot++)
+            {
+                int entry = 446 + (slot * 16);
+                byte systemId = mbrData[entry + 4];
+                if (systemId == 0)
+                {
+                    freeSlot = slot;
+                    break;
+                }
+            }
+            if (freeSlot == -1)
+            {
+                throw new NotImplementedException("No free primary partition slots. Extended partitions are not yet supported.");
+            }
 
-            //Boot flag
-            byte[] boot = BitConverter.GetBytes((ushort)0xAA55);
-            mbrData[510] = boot[0];
-            mbrData[511] = boot[1];
+            // Determine next available aligned start LBA
+            const ulong alignSectors = 2048; // 1 MiB alignment
+            ulong blockSize = Host.BlockSize;
+            ulong diskSectors = Host.BlockCount;
+            ulong sectorsNeeded = (ulong)((size * 1024L * 1024L + (long)blockSize - 1) / (long)blockSize);
 
-            Partition partion = new(Host, startingSector, amountOfSectors);
+            // Collect existing partitions and compute end of last one
+            var mbr = new MBR(Host);
+            ulong lastEnd = alignSectors; // start with minimum alignment
+            foreach (var p in mbr.Partitions)
+            {
+                ulong end = p.StartSector + p.SectorCount; // first free after this part
+                if (end > lastEnd)
+                {
+                    lastEnd = end;
+                }
+            }
+            // Align start
+            ulong startLBA = ((lastEnd + alignSectors - 1) / alignSectors) * alignSectors;
+            if (startLBA < alignSectors)
+            {
+                startLBA = alignSectors;
+            }
+            if (startLBA + sectorsNeeded > diskSectors)
+            {
+                throw new ArgumentException("Not enough free space for requested partition size.");
+            }
 
-            Partition.Partitions.Add(partion);
-            parts.Add(new ManagedPartition(partion));
+            // Create partition object and write MBR entry via helper
+            var partition = new Partition(Host, startLBA, sectorsNeeded);
+            new MBR(Host).WritePartitionInformation(partition, (byte)freeSlot);
 
-            //Save the data
-            Host.WriteBlock(0, 1, ref mbrData);
+            // Track in Partition registry and local list for legacy consumers
+            Partition.Partitions.Add(partition);
+            parts.Add(new ManagedPartition(partition));
         }
         /// <summary>
         /// Deletes a partition
@@ -257,9 +253,10 @@ namespace Cosmos.System.FileSystem
             {
                 throw new Exception("Removing all partitions with GPT style not yet supported!");
             }
-            for (int i = 0; i < Partitions.Count; i++)
+            // Repeatedly delete first partition until none remain to avoid index shifting issues
+            while (Partitions.Count > 0)
             {
-                DeletePartition(i);
+                DeletePartition(0);
             }
         }
 

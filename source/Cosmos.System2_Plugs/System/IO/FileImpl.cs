@@ -1,6 +1,8 @@
 using IL2CPU.API.Attribs;
 using IL2CPU.API;
 using Cosmos.System;
+using System;
+using Cosmos.System.FileSystem.VFS;
 
 namespace Cosmos.System_Plugs.System.IO
 {
@@ -41,9 +43,92 @@ namespace Cosmos.System_Plugs.System.IO
 
         public static void WriteAllBytes(string path, byte[] aData)
         {
-            var writer = new FileStream(path, FileMode.OpenOrCreate);
+            FileStream writer = new(path, FileMode.OpenOrCreate);
             writer.Write(aData);
             writer.Dispose();
+        }
+
+        // Attributes
+        public static FileAttributes GetAttributes(string path)
+        {
+            if (path == null)
+            {
+                throw new ArgumentNullException(nameof(path));
+            }
+            var entry = VFSManager.GetFile(path) ?? throw new global::System.IO.FileNotFoundException(path);
+            return entry.GetAttributes();
+        }
+
+        public static void SetAttributes(string path, FileAttributes fileAttributes)
+        {
+            if (path == null)
+            {
+                throw new ArgumentNullException(nameof(path));
+            }
+            var entry = VFSManager.GetFile(path) ?? throw new global::System.IO.FileNotFoundException(path);
+            entry.SetAttributes(fileAttributes);
+        }
+
+        // Timestamp setters
+        public static void SetCreationTime(string path, DateTime creationTime)
+        {
+            if (path == null)
+            {
+                throw new ArgumentNullException(nameof(path));
+            }
+            var entry = VFSManager.GetFile(path) ?? throw new global::System.IO.FileNotFoundException(path);
+            entry.SetCreationTime(creationTime);
+        }
+
+        public static void SetLastWriteTime(string path, DateTime lastWriteTime)
+        {
+            if (path == null)
+            {
+                throw new ArgumentNullException(nameof(path));
+            }
+            var entry = VFSManager.GetFile(path) ?? throw new global::System.IO.FileNotFoundException(path);
+            entry.SetLastWriteTime(lastWriteTime);
+        }
+
+        public static void SetLastAccessTime(string path, DateTime lastAccessTime)
+        {
+            if (path == null)
+            {
+                throw new ArgumentNullException(nameof(path));
+            }
+            var entry = VFSManager.GetFile(path) ?? throw new global::System.IO.FileNotFoundException(path);
+            entry.SetLastAccessTime(lastAccessTime);
+        }
+
+        // Timestamp getters
+        public static DateTime GetCreationTime(string path)
+        {
+            if (path == null)
+            {
+                throw new ArgumentNullException(nameof(path));
+            }
+            var entry = VFSManager.GetFile(path) ?? throw new global::System.IO.FileNotFoundException(path);
+            return entry.GetCreationTime();
+        }
+
+        public static DateTime GetLastWriteTime(string path)
+        {
+            if (path == null)
+            {
+                throw new ArgumentNullException(nameof(path));
+            }
+            var entry = VFSManager.GetFile(path) ?? throw new global::System.IO.FileNotFoundException(path);
+            return entry.GetLastWriteTime();
+        }
+
+        public static DateTime GetLastAccessTime(string path)
+        {
+            if (path == null)
+            {
+                throw new ArgumentNullException(nameof(path));
+            }
+            var entry = VFSManager.GetFile(path) ?? throw new global::System.IO.FileNotFoundException(path);
+            return entry.GetLastAccessTime();
         }
     }
 }

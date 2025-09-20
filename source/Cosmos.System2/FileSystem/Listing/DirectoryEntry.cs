@@ -108,5 +108,48 @@ namespace Cosmos.System.FileSystem.Listing
         /// </summary>
         /// <returns>long value.</returns>
         public abstract long GetUsedSpace();
+
+        // Timestamp setters: default behavior is unsupported; specific filesystems can override
+        public virtual void SetCreationTime(DateTime creationTime)
+        {
+            throw new NotSupportedException("Setting creation time is not supported for this filesystem/entry.");
+        }
+
+        public virtual void SetLastWriteTime(DateTime lastWriteTime)
+        {
+            throw new NotSupportedException("Setting last write time is not supported for this filesystem/entry.");
+        }
+
+        public virtual void SetLastAccessTime(DateTime lastAccessTime)
+        {
+            throw new NotSupportedException("Setting last access time is not supported for this filesystem/entry.");
+        }
+
+        // Timestamp getters: default unsupported; filesystems should override
+        public virtual DateTime GetCreationTime()
+        {
+            throw new NotSupportedException("Getting creation time is not supported for this filesystem/entry.");
+        }
+
+        public virtual DateTime GetLastWriteTime()
+        {
+            throw new NotSupportedException("Getting last write time is not supported for this filesystem/entry.");
+        }
+
+        public virtual DateTime GetLastAccessTime()
+        {
+            throw new NotSupportedException("Getting last access time is not supported for this filesystem/entry.");
+        }
+
+        // Attributes
+        public virtual FileAttributes GetAttributes()
+        {
+            throw new NotSupportedException("Getting attributes is not supported for this filesystem/entry.");
+        }
+
+        public virtual void SetAttributes(FileAttributes attributes)
+        {
+            throw new NotSupportedException("Setting attributes is not supported for this filesystem/entry.");
+        }
     }
 }
